@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>赛博朋克 - 霓虹射箭 PRO MAX</title>
+    <title>赛博朋克 - 霓虹射箭 ONLINE</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
 
@@ -33,18 +34,16 @@
         .screen { display: none; width: 100%; max-width: 900px; flex-direction: column; align-items: center; z-index: 10; }
         .screen.active { display: flex; }
 
-        /* Auth (Login/Register) Styles */
+        /* Auth Styles */
         .auth-box {
             background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(10px);
             border: 2px solid var(--neon-blue); box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
             border-radius: 12px; padding: 30px; width: 85%; max-width: 350px; display: flex; flex-direction: column; gap: 15px;
         }
         .auth-tabs { display: flex; border-bottom: 1px solid #555; margin-bottom: 10px; }
-        .auth-tab {
-            flex: 1; padding: 10px; cursor: pointer; color: #888; font-weight: bold; border-bottom: 2px solid transparent; transition: all 0.3s;
-        }
+        .auth-tab { flex: 1; padding: 10px; cursor: pointer; color: #888; font-weight: bold; border-bottom: 2px solid transparent; transition: all 0.3s; }
         .auth-tab.active { color: var(--neon-blue); border-bottom: 2px solid var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
-        .input-group { display: flex; flex-direction: column; text-align: left; gap: 5px; }
+        .input-group { display: flex; flex-direction: column; text-align: left; gap: 5px; margin-top: 10px; }
         .input-group label { font-size: 11px; color: var(--neon-pink); }
         .input-group input {
             background: rgba(0, 0, 0, 0.5); border: 1px solid #555; padding: 12px; color: #fff; font-family: 'Orbitron', sans-serif;
@@ -111,10 +110,10 @@
 
             <div id="formLogin">
                 <div class="input-group">
-                    <label>EMAIL / USERNAME</label>
-                    <input type="text" id="loginId" placeholder="Enter email or username...">
+                    <label>EMAIL</label>
+                    <input type="email" id="loginEmail" placeholder="player@neon.com">
                 </div>
-                <div class="input-group" style="margin-top: 10px;">
+                <div class="input-group">
                     <label>PASSWORD</label>
                     <input type="password" id="loginPwd" placeholder="••••••••">
                 </div>
@@ -123,14 +122,14 @@
 
             <div id="formRegister" style="display: none;">
                 <div class="input-group">
-                    <label>USERNAME</label>
-                    <input type="text" id="regName" placeholder="Choose a cool callsign...">
+                    <label>CALLSIGN (USERNAME)</label>
+                    <input type="text" id="regName" placeholder="Choose a cool name...">
                 </div>
-                <div class="input-group" style="margin-top: 10px;">
+                <div class="input-group">
                     <label>EMAIL</label>
-                    <input type="email" id="regEmail" placeholder="Real email for recovery...">
+                    <input type="email" id="regEmail" placeholder="Real email required...">
                 </div>
-                <div class="input-group" style="margin-top: 10px;">
+                <div class="input-group">
                     <label>PASSWORD</label>
                     <input type="password" id="regPwd" placeholder="••••••••">
                 </div>
@@ -174,7 +173,8 @@
                 Your Score: <span id="finalScore" style="font-size:24px; color:#fff; font-weight:bold;">0</span>
             </div>
             <div class="rank-list" id="rankList">
-                </div>
+                <div style="text-align:center; color:#888;">Loading DB...</div>
+            </div>
             <button class="btn btn-pink" onclick="resetGame()">PLAY AGAIN</button>
             <button class="btn" style="margin-top: 10px;" onclick="logout()">LOGOUT</button>
         </div>
@@ -191,40 +191,66 @@
     </div>
 
     <script>
-        /* ================= 用户体系后台模拟 ================= */
+        // ==========================================
+        // 🚨 请在这里填入你的 SUPABASE 密钥！🚨
+        // ==========================================
+        const SUPABASE_URL = 'https://trwmswrmgllbmffpphvx.supabase.co/rest/v1/';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyd21zd3JtZ2xsYm1mZnBwaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTk5ODAsImV4cCI6MjA5NTE5NTk4MH0.W2pPmoBT_bBcx69Hnk74d1n-kM-X-8dIYBVDfEDuvtM';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let currentUser = null;
         let isGuest = false;
-        // 模拟数据库
-        let leaderboard = JSON.parse(localStorage.getItem('cyberArcheryLeaderboard')) || [];
+
+        // 检查用户是否已经登录过
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUser = { username: session.user.user_metadata.username, email: session.user.email };
+                isGuest = false;
+                startGame();
+            }
+        }
+        checkSession();
 
         function toggleAuth(type) {
             if(type === 'login') {
-                document.getElementById('tabLogin').classList.add('active');
-                document.getElementById('tabRegister').classList.remove('active');
-                document.getElementById('formLogin').style.display = 'block';
-                document.getElementById('formRegister').style.display = 'none';
+                document.getElementById('tabLogin').classList.add('active'); document.getElementById('tabRegister').classList.remove('active');
+                document.getElementById('formLogin').style.display = 'block'; document.getElementById('formRegister').style.display = 'none';
             } else {
-                document.getElementById('tabRegister').classList.add('active');
-                document.getElementById('tabLogin').classList.remove('active');
-                document.getElementById('formRegister').style.display = 'block';
-                document.getElementById('formLogin').style.display = 'none';
+                document.getElementById('tabRegister').classList.add('active'); document.getElementById('tabLogin').classList.remove('active');
+                document.getElementById('formRegister').style.display = 'block'; document.getElementById('formLogin').style.display = 'none';
             }
         }
 
-        function processLogin() {
-            // [未来后端接入点: Supabase Auth SignIn]
-            let id = document.getElementById('loginId').value.trim();
-            if(!id) return alert('Enter email or username!');
-            currentUser = { username: id }; 
+        async function processLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPwd').value;
+            if(!email || !password) return alert('Email and password required!');
+            
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) return alert('Login failed: ' + error.message);
+            
+            currentUser = { username: data.user.user_metadata.username, email: data.user.email };
             isGuest = false;
             startGame();
         }
 
-        function processRegister() {
-            // [未来后端接入点: Supabase Auth SignUp]
-            let name = document.getElementById('regName').value.trim();
-            if(!name) return alert('Username is required!');
-            currentUser = { username: name };
+        async function processRegister() {
+            const username = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPwd').value;
+            
+            if(!username || !email || !password) return alert('All fields are required!');
+            
+            const { data, error } = await supabase.auth.signUp({
+                email, password, options: { data: { username: username } }
+            });
+            
+            if (error) return alert('Registration failed: ' + error.message);
+            alert('Registration successful! Accessing system...');
+            
+            currentUser = { username: username, email: email };
             isGuest = false;
             startGame();
         }
@@ -235,12 +261,12 @@
             startGame();
         }
 
-        function logout() {
+        async function logout() {
+            if (!isGuest) await supabase.auth.signOut();
             currentUser = null;
             switchScreen('authScreen');
         }
 
-        /* ================= 界面流转控制 ================= */
         const MAX_ARROWS = 6;
         let currentArrows = 0;
 
@@ -257,11 +283,9 @@
 
         function handleGameOver() {
             if (isGuest) {
-                // 游客弹出专属引导
                 document.getElementById('modalScore').innerText = score;
                 document.getElementById('guestModal').classList.add('active');
             } else {
-                // 注册用户直接上传分数并查看排行
                 saveScoreAndShowLeaderboard();
             }
         }
@@ -274,40 +298,56 @@
 
         function skipToLeaderboard() {
             document.getElementById('guestModal').classList.remove('active');
-            saveScoreAndShowLeaderboard(); // 游客不存库，只看排行
+            fetchAndShowLeaderboard(); // 游客只拉取不保存
         }
 
-        function saveScoreAndShowLeaderboard() {
-            // [未来后端接入点: Supabase Insert 存入数据库]
-            if(!isGuest) {
-                leaderboard.push({ name: currentUser.username, score: score, date: new Date().toLocaleDateString() });
-                leaderboard.sort((a, b) => b.score - a.score);
-                leaderboard = leaderboard.slice(0, 10);
-                localStorage.setItem('cyberArcheryLeaderboard', JSON.stringify(leaderboard));
-            }
-
+        async function saveScoreAndShowLeaderboard() {
             document.getElementById('finalScore').innerText = score;
+            switchScreen('leaderboardScreen');
+            document.getElementById('rankList').innerHTML = '<div style="text-align:center; color:#888;">Syncing to DB...</div>';
+
+            if(!isGuest) {
+                const { error } = await supabase.from('leaderboard').insert([{ username: currentUser.username, score: score }]);
+                if (error) console.error("Error saving score:", error);
+            }
+            fetchAndShowLeaderboard();
+        }
+
+        async function fetchAndShowLeaderboard() {
+            document.getElementById('finalScore').innerText = score;
+            switchScreen('leaderboardScreen');
+
+            // 从数据库拉取前10名
+            const { data, error } = await supabase.from('leaderboard')
+                .select('username, score')
+                .order('score', { ascending: false })
+                .limit(10);
+            
             const rankListEl = document.getElementById('rankList');
             rankListEl.innerHTML = '';
+
+            if (error) {
+                rankListEl.innerHTML = `<div style="color:red;">Error loading ranks: ${error.message}</div>`;
+                return;
+            }
+
+            let displayBoard = data || [];
             
-            // 如果是游客，临时插到列表里高亮展示当前分数（不存本地）
-            let displayBoard = [...leaderboard];
-            if(isGuest) {
-                displayBoard.push({ name: currentUser.username + " (You)", score: score });
+            // 游客将自己的成绩虚空插入用于比对展示
+            if (isGuest) {
+                displayBoard.push({ username: currentUser.username + " (You)", score: score });
                 displayBoard.sort((a, b) => b.score - a.score);
             }
 
             displayBoard.forEach((entry, index) => {
-                let isMe = (entry.score === score && entry.name.includes(currentUser.username)) ? 'current-player' : '';
+                let isMe = (entry.score === score && entry.username.includes(currentUser.username)) ? 'current-player' : '';
                 rankListEl.innerHTML += `
                     <div class="score-row ${isMe}">
-                        <span>#${index + 1} ${entry.name}</span>
+                        <span>#${index + 1} ${entry.username}</span>
                         <span>${entry.score} PTS</span>
                     </div>
                 `;
             });
-
-            switchScreen('leaderboardScreen');
         }
 
         function resetGame() {
@@ -317,8 +357,7 @@
         }
 
         /* ================= 游戏核心渲染 & 物理引擎 ================= */
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
         const FOV = 800; const CX = canvas.width / 2; const CY = canvas.height / 2;
         let score = 0; let state = 'aiming'; let time = 0; 
         const gravity = 0.12; let wind = { x: 0, y: 0 };  
@@ -328,10 +367,7 @@
         let arrow = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
         let particles = []; let floatingTexts = [];
 
-        function project(x, y, z) {
-            if (z < -FOV) return null; 
-            const scale = FOV / (FOV + z); return { x: CX + x * scale, y: CY - y * scale, scale: scale };
-        }
+        function project(x, y, z) { if (z < -FOV) return null; const scale = FOV / (FOV + z); return { x: CX + x * scale, y: CY - y * scale, scale: scale }; }
 
         function initArrow() {
             state = 'aiming'; power = 0; isCharging = false;
@@ -339,14 +375,12 @@
             arrow = { x: 0, y: -20, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
             particles = []; floatingTexts = [];
             wind.x = (Math.random() - 0.5) * 0.24; wind.y = (Math.random() - 0.5) * 0.24;
-            document.getElementById('nextBtn').disabled = true;
-            document.getElementById('powerBar').classList.remove('power-overload');
-            updateUI();
+            document.getElementById('nextBtn').disabled = true; document.getElementById('powerBar').classList.remove('power-overload'); updateUI();
         }
 
         function nextArrow() {
             if(state === 'ended') {
-                if(currentArrows >= MAX_ARROWS) handleGameOver(); // 触发结算分支
+                if(currentArrows >= MAX_ARROWS) handleGameOver();
                 else initArrow();
             }
         }
@@ -355,10 +389,8 @@
         function handleAimMove(clientX, clientY) {
             if (state === 'aiming' && isCharging && lastTouch) {
                 const rect = canvas.getBoundingClientRect();
-                let dx = (clientX - lastTouch.x) * (canvas.width / rect.width);
-                let dy = (clientY - lastTouch.y) * (canvas.height / rect.height);
-                aimPos.x = Math.max(0, Math.min(canvas.width, aimPos.x + dx * 1.5));
-                aimPos.y = Math.max(0, Math.min(canvas.height, aimPos.y + dy * 1.5));
+                let dx = (clientX - lastTouch.x) * (canvas.width / rect.width); let dy = (clientY - lastTouch.y) * (canvas.height / rect.height);
+                aimPos.x = Math.max(0, Math.min(canvas.width, aimPos.x + dx * 1.5)); aimPos.y = Math.max(0, Math.min(canvas.height, aimPos.y + dy * 1.5));
                 lastTouch = { x: clientX, y: clientY };
             }
         }
@@ -368,8 +400,7 @@
                 let finalX = aimPos.x + shake.x; let finalY = aimPos.y + shake.y;
                 let dx = finalX - CX; let dy = CY - finalY; let length = Math.sqrt(dx*dx + dy*dy + FOV*FOV);
                 arrow.vx = (dx / length) * power; arrow.vy = (dy / length) * power; arrow.vz = (FOV / length) * power;
-                arrow.x = 0; arrow.y = -20; arrow.z = 0;
-                document.getElementById('powerBar').classList.remove('power-overload'); updateUI();
+                arrow.x = 0; arrow.y = -20; arrow.z = 0; document.getElementById('powerBar').classList.remove('power-overload'); updateUI();
             }
         }
 
@@ -378,16 +409,13 @@
         canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleAimEnd(); }, {passive: false});
         canvas.addEventListener('mousedown', (e) => { if(e.button === 0) handleAimStart(e.clientX, e.clientY); });
         canvas.addEventListener('mousemove', (e) => {
-            if (state === 'aiming' && !isCharging) {
-                const rect = canvas.getBoundingClientRect();
-                aimPos.x = (e.clientX - rect.left) * (canvas.width / rect.width); aimPos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
-            } else handleAimMove(e.clientX, e.clientY);
+            if (state === 'aiming' && !isCharging) { const rect = canvas.getBoundingClientRect(); aimPos.x = (e.clientX - rect.left) * (canvas.width / rect.width); aimPos.y = (e.clientY - rect.top) * (canvas.height / rect.height); } 
+            else handleAimMove(e.clientX, e.clientY);
         });
         canvas.addEventListener('mouseup', (e) => { if(e.button === 0) handleAimEnd(); });
 
         function updateUI() {
-            document.getElementById('score').innerText = score;
-            document.getElementById('displayArrows').innerText = `${currentArrows}/${MAX_ARROWS}`;
+            document.getElementById('score').innerText = score; document.getElementById('displayArrows').innerText = `${currentArrows}/${MAX_ARROWS}`;
             const bar = document.getElementById('powerBar'); bar.style.width = Math.min((power / maxPower) * 100, 100) + '%';
             if(power >= maxPower) bar.classList.add('power-overload'); else bar.classList.remove('power-overload');
             if(state === 'ended') document.getElementById('nextBtn').innerText = currentArrows >= MAX_ARROWS ? "FINISH" : "NEXT";
@@ -408,9 +436,7 @@
 
             if (state === 'aiming') {
                 if (isCharging) {
-                    power += 0.5; 
-                    if (power >= maxPower) { power = maxPower; shake.x = (Math.random() - 0.5) * 20; shake.y = (Math.random() - 0.5) * 20; } 
-                    else { shake.x = 0; shake.y = 0; }
+                    power += 0.5; if (power >= maxPower) { power = maxPower; shake.x = (Math.random() - 0.5) * 20; shake.y = (Math.random() - 0.5) * 20; } else { shake.x = 0; shake.y = 0; }
                     updateUI();
                 }
             } else if (state === 'flying') {
@@ -421,8 +447,7 @@
 
                 if (prevZ < target.z && arrow.z >= target.z) {
                     state = 'ended'; let t = (target.z - prevZ) / (arrow.z - prevZ);
-                    let hitX = prevX + t * (arrow.x - prevX); let hitY = prevY + t * (arrow.y - prevY);
-                    let dist = Math.hypot(hitX - target.x, hitY - target.y);
+                    let hitX = prevX + t * (arrow.x - prevX); let hitY = prevY + t * (arrow.y - prevY); let dist = Math.hypot(hitX - target.x, hitY - target.y);
                     if (dist <= target.radius) {
                         let ringWidth = target.radius / 10; let points = 11 - Math.ceil(dist / ringWidth);
                         if (points < 1) points = 1; if (points > 10) points = 10;
