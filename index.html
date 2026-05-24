@@ -193,22 +193,41 @@
     <script>
         // ==========================================
         // 🚨 请在这里填入你的 SUPABASE 密钥！🚨
+        // 注意：千万不要删掉前后的单引号 ' ' ！！！
         // ==========================================
         const SUPABASE_URL = 'https://trwmswrmgllbmffpphvx.supabase.co/rest/v1/';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyd21zd3JtZ2xsYm1mZnBwaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTk5ODAsImV4cCI6MjA5NTE5NTk4MH0.W2pPmoBT_bBcx69Hnk74d1n-kM-X-8dIYBVDfEDuvtM';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase = null;
+        let isDbConnected = false;
+
+        // 安全初始化防崩溃机制
+        try {
+            if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                isDbConnected = true;
+            } else {
+                console.warn("未检测到有效的 Supabase 配置，将运行在单机断网模式。");
+            }
+        } catch (e) {
+            console.error("Supabase 初始化失败:", e);
+        }
 
         let currentUser = null;
         let isGuest = false;
 
         // 检查用户是否已经登录过
         async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                currentUser = { username: session.user.user_metadata.username, email: session.user.email };
-                isGuest = false;
-                startGame();
+            if (!isDbConnected) return; // 如果未连接数据库则跳过检查
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    currentUser = { username: session.user.user_metadata.username, email: session.user.email };
+                    isGuest = false;
+                    startGame();
+                }
+            } catch (e) {
+                console.error("获取Session失败:", e);
             }
         }
         checkSession();
@@ -224,12 +243,13 @@
         }
 
         async function processLogin() {
+            if (!isDbConnected) return alert('数据库未连接！请先检查代码中的 URL 和 KEY 是否正确填入。');
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPwd').value;
-            if(!email || !password) return alert('Email and password required!');
+            if(!email || !password) return alert('请填写邮箱和密码！');
             
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) return alert('Login failed: ' + error.message);
+            if (error) return alert('登录失败: ' + error.message);
             
             currentUser = { username: data.user.user_metadata.username, email: data.user.email };
             isGuest = false;
@@ -237,18 +257,19 @@
         }
 
         async function processRegister() {
+            if (!isDbConnected) return alert('数据库未连接！请先检查代码中的 URL 和 KEY 是否正确填入。');
             const username = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPwd').value;
             
-            if(!username || !email || !password) return alert('All fields are required!');
+            if(!username || !email || !password) return alert('请填写所有注册信息！');
             
             const { data, error } = await supabase.auth.signUp({
                 email, password, options: { data: { username: username } }
             });
             
-            if (error) return alert('Registration failed: ' + error.message);
-            alert('Registration successful! Accessing system...');
+            if (error) return alert('注册失败: ' + error.message);
+            alert('注册成功！正在进入系统...');
             
             currentUser = { username: username, email: email };
             isGuest = false;
@@ -262,7 +283,9 @@
         }
 
         async function logout() {
-            if (!isGuest) await supabase.auth.signOut();
+            if (!isGuest && isDbConnected) {
+                await supabase.auth.signOut();
+            }
             currentUser = null;
             switchScreen('authScreen');
         }
@@ -304,6 +327,12 @@
         async function saveScoreAndShowLeaderboard() {
             document.getElementById('finalScore').innerText = score;
             switchScreen('leaderboardScreen');
+            
+            if (!isDbConnected) {
+                document.getElementById('rankList').innerHTML = '<div style="text-align:center; color:#f0f;">未连接数据库，无法展示排行。</div>';
+                return;
+            }
+
             document.getElementById('rankList').innerHTML = '<div style="text-align:center; color:#888;">Syncing to DB...</div>';
 
             if(!isGuest) {
@@ -316,6 +345,8 @@
         async function fetchAndShowLeaderboard() {
             document.getElementById('finalScore').innerText = score;
             switchScreen('leaderboardScreen');
+            
+            if (!isDbConnected) return;
 
             // 从数据库拉取前10名
             const { data, error } = await supabase.from('leaderboard')
