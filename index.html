@@ -667,7 +667,7 @@
         function drawHUD() {
             // 风向仪 (左上角)
             const cx = 70;
-            const cy = 70;
+            const cy = canvas.height - 80; // 修改为距离画布底部 80 像素
             const r = 35;
             
             ctx.save();
