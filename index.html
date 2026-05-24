@@ -3,567 +3,778 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>赛博朋克 - 霓虹射箭 ONLINE</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>赛博朋克 - 霓虹射箭 (移动端适配)</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
-
-        :root {
-            --neon-blue: #0ff;
-            --neon-pink: #f0f;
-            --neon-yellow: #ffeb3b;
-            --bg-dark: #050510;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&display=swap');
 
         body {
-            margin: 0; padding: 0; background-color: var(--bg-dark);
-            background-image: radial-gradient(circle at 50% 0%, #200040 0%, var(--bg-dark) 70%);
-            color: var(--neon-blue); font-family: 'Orbitron', sans-serif;
-            text-align: center; overflow: hidden; touch-action: none; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            background-color: #050510;
+            background-image: radial-gradient(circle at 50% 0%, #200040 0%, #050510 70%);
+            color: #0ff;
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            text-align: center;
+            overflow: hidden;
+            /* 防止移动端默认的手势操作（如下拉刷新、滑动前进后退） */
+            touch-action: none; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
         }
-
-        body::after {
-            content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 999; background-size: 100% 4px, 6px 100%; pointer-events: none;
+        h2 { 
+            margin-top: 10px; margin-bottom: 15px; 
+            color: #fff;
+            text-shadow: 0 0 5px #f0f, 0 0 10px #f0f, 0 0 20px #f0f;
+            letter-spacing: 2px;
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
         }
-
-        h1, h2, h3 { color: #fff; text-shadow: 0 0 5px var(--neon-pink), 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink); letter-spacing: 2px; margin: 10px 0; }
-
-        .screen { display: none; width: 100%; max-width: 900px; flex-direction: column; align-items: center; z-index: 10; }
-        .screen.active { display: flex; }
-
-        /* Auth Styles */
-        .auth-box {
-            background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(10px);
-            border: 2px solid var(--neon-blue); box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
-            border-radius: 12px; padding: 30px; width: 85%; max-width: 350px; display: flex; flex-direction: column; gap: 15px;
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: center;
         }
-        .auth-tabs { display: flex; border-bottom: 1px solid #555; margin-bottom: 10px; }
-        .auth-tab { flex: 1; padding: 10px; cursor: pointer; color: #888; font-weight: bold; border-bottom: 2px solid transparent; transition: all 0.3s; }
-        .auth-tab.active { color: var(--neon-blue); border-bottom: 2px solid var(--neon-blue); text-shadow: 0 0 5px var(--neon-blue); }
-        .input-group { display: flex; flex-direction: column; text-align: left; gap: 5px; margin-top: 10px; }
-        .input-group label { font-size: 11px; color: var(--neon-pink); }
-        .input-group input {
-            background: rgba(0, 0, 0, 0.5); border: 1px solid #555; padding: 12px; color: #fff; font-family: 'Orbitron', sans-serif;
-            border-radius: 6px; outline: none; transition: all 0.3s;
+        canvas {
+            width: 100%;
+            height: auto;
+            max-height: 65vh;
+            background: transparent;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 20px rgba(255, 0, 255, 0.2);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 8px;
+            cursor: crosshair;
+            object-fit: contain;
         }
-        .input-group input:focus { border-color: var(--neon-blue); box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
-        .auth-divider { display: flex; align-items: center; text-align: center; color: #555; font-size: 12px; margin: 10px 0; }
-        .auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-bottom: 1px solid #555; margin: 0 10px; }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.8); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-content {
-            background: rgba(20, 0, 20, 0.9); border: 2px solid var(--neon-yellow); box-shadow: 0 0 30px rgba(255, 235, 59, 0.4);
-            border-radius: 12px; padding: 30px; text-align: center; max-width: 80%; width: 300px;
-        }
-
-        /* Leaderboard Styles */
-        .leaderboard-box {
-            background: rgba(10, 10, 25, 0.85); border: 2px solid var(--neon-pink); box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
-            border-radius: 12px; padding: 30px; width: 90%; max-width: 500px;
-        }
-        .score-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; }
-        .score-row.current-player { background: rgba(0, 255, 255, 0.2); font-weight: bold; color: #fff; text-shadow: 0 0 5px var(--neon-blue); }
-        .rank-list { max-height: 250px; overflow-y: auto; margin-bottom: 20px; }
-        
-        /* Game Styles */
-        .game-wrapper { position: relative; width: 100%; display: flex; justify-content: center; }
-        canvas { width: 100%; height: auto; max-height: 65vh; background: transparent; border: 2px solid rgba(0, 255, 255, 0.5); border-radius: 8px; cursor: crosshair; object-fit: contain; }
         .ui-panel {
-            margin-top: 15px; background: rgba(10, 10, 25, 0.8); border: 1px solid var(--neon-pink); box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
-            border-radius: 8px; padding: 10px 20px; display: flex; flex-wrap: wrap; justify-content: space-around; align-items: center; gap: 15px; width: 95%; max-width: 900px; box-sizing: border-box;
+            margin-top: 15px;
+            background: rgba(10, 10, 25, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #f0f;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+            display: flex;
+            flex-wrap: wrap; /* 允许在窄屏手机上换行 */
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 860px;
+            box-sizing: border-box;
         }
-        .stat-box { display: flex; flex-direction: column; align-items: center; font-size: 12px;}
-        .stat-value { font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 0 10px var(--neon-blue); }
-        .power-bar-container { width: 120px; height: 15px; background: rgba(0,0,0,0.6); border: 1px solid var(--neon-blue); border-radius: 4px; overflow: hidden; }
-        #powerBar { width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink), var(--neon-yellow)); transition: width 0.05s; }
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+        }
+        .power-bar-container {
+            width: 150px;
+            height: 18px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 4px;
+            border: 2px solid #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            overflow: hidden;
+            position: relative;
+        }
+        #powerBar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #0ff, #f0f, #ffeb3b);
+            box-shadow: 0 0 10px #f0f;
+            transition: width 0.05s linear;
+        }
+        /* 过载时的红条闪烁动画 */
         .power-overload { background: #ff0000 !important; box-shadow: 0 0 15px #ff0000 !important; }
         
         .btn {
-            padding: 12px 20px; font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: bold; cursor: pointer;
-            border: 2px solid var(--neon-blue); border-radius: 6px; background: transparent; color: var(--neon-blue);
-            text-shadow: 0 0 5px var(--neon-blue); box-shadow: inset 0 0 10px rgba(0,255,255,0.3); transition: all 0.2s; text-transform: uppercase; width: 100%;
+            padding: 10px 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid #0ff;
+            border-radius: 4px;
+            background: transparent;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+            box-shadow: inset 0 0 10px rgba(0,255,255,0.3), 0 0 10px rgba(0,255,255,0.3);
+            transition: all 0.2s;
+            text-transform: uppercase;
         }
-        .btn:hover:not(:disabled) { background: rgba(0, 255, 255, 0.2); box-shadow: inset 0 0 20px rgba(0,255,255,0.6); }
-        .btn:disabled { border-color: #555; color: #555; text-shadow: none; box-shadow: none; cursor: not-allowed; }
-        .btn.btn-pink { border-color: var(--neon-pink); color: var(--neon-pink); text-shadow: 0 0 5px var(--neon-pink); box-shadow: inset 0 0 10px rgba(255,0,255,0.3);}
-        .btn.btn-pink:hover:not(:disabled) { background: rgba(255, 0, 255, 0.2); box-shadow: inset 0 0 20px rgba(255,0,255,0.6); }
-        .btn.btn-yellow { border-color: var(--neon-yellow); color: var(--neon-yellow); text-shadow: 0 0 5px var(--neon-yellow); box-shadow: inset 0 0 10px rgba(255,235,59,0.3);}
+        .btn:hover:not(:disabled) { 
+            background: rgba(0, 255, 255, 0.2); 
+            box-shadow: inset 0 0 20px rgba(0,255,255,0.6), 0 0 20px rgba(0,255,255,0.6);
+        }
+        .btn:disabled { 
+            border-color: #555; color: #555; text-shadow: none; box-shadow: none; cursor: not-allowed; 
+        }
+        .game-wrapper::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-    <div id="authScreen" class="screen active">
-        <h2>CYBER-ARCHERY</h2>
-        <div class="auth-box">
-            <div class="auth-tabs">
-                <div class="auth-tab active" id="tabLogin" onclick="toggleAuth('login')">LOGIN</div>
-                <div class="auth-tab" id="tabRegister" onclick="toggleAuth('register')">REGISTER</div>
-            </div>
-
-            <div id="formLogin">
-                <div class="input-group">
-                    <label>EMAIL</label>
-                    <input type="email" id="loginEmail" placeholder="player@neon.com">
-                </div>
-                <div class="input-group">
-                    <label>PASSWORD</label>
-                    <input type="password" id="loginPwd" placeholder="••••••••">
-                </div>
-                <button class="btn" style="margin-top: 20px;" onclick="processLogin()">ACCESS SYSTEM</button>
-            </div>
-
-            <div id="formRegister" style="display: none;">
-                <div class="input-group">
-                    <label>CALLSIGN (USERNAME)</label>
-                    <input type="text" id="regName" placeholder="Choose a cool name...">
-                </div>
-                <div class="input-group">
-                    <label>EMAIL</label>
-                    <input type="email" id="regEmail" placeholder="Real email required...">
-                </div>
-                <div class="input-group">
-                    <label>PASSWORD</label>
-                    <input type="password" id="regPwd" placeholder="••••••••">
-                </div>
-                <button class="btn btn-pink" style="margin-top: 20px;" onclick="processRegister()">CREATE ACCOUNT</button>
-            </div>
-
-            <div class="auth-divider">OR</div>
-            <button class="btn" style="border-style: dashed;" onclick="playAsGuest()">PLAY AS GUEST</button>
-        </div>
+    <h2>🏹 CYBER-ARCHERY: MOBILE PROTOCOL</h2>
+    
+    <div class="game-wrapper">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
     </div>
 
-    <div id="gameScreen" class="screen">
-        <div style="width:100%; display:flex; justify-content:space-between; max-width:900px; margin-bottom:5px;">
-            <span style="font-size:12px;">PLAYER: <span id="displayPlayer" style="color:#fff;"></span></span>
-            <span style="font-size:12px; color:var(--neon-pink);">ARROWS: <span id="displayArrows" style="color:#fff;">0/6</span></span>
+    <div class="ui-panel">
+        <div class="stat-box">
+            <span>TOTAL SCORE</span>
+            <span class="stat-value" id="score">0</span>
         </div>
         
-        <div class="game-wrapper">
-            <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <div class="stat-box">
+            <span>CHARGE LEVEL</span>
+            <div class="power-bar-container">
+                <div id="powerBar"></div>
+            </div>
         </div>
 
-        <div class="ui-panel">
-            <div class="stat-box">
-                <span>SCORE</span>
-                <span class="stat-value" id="score">0</span>
-            </div>
-            <div class="stat-box">
-                <span>CHARGE</span>
-                <div class="power-bar-container">
-                    <div id="powerBar"></div>
-                </div>
-            </div>
-            <button id="nextBtn" class="btn" style="width:auto; padding: 10px 20px;" onclick="nextArrow()" disabled>NEXT</button>
-        </div>
-    </div>
-
-    <div id="leaderboardScreen" class="screen">
-        <h3>GLOBAL RANKING</h3>
-        <div class="leaderboard-box">
-            <div style="margin-bottom: 15px; color:var(--neon-blue);">
-                Your Score: <span id="finalScore" style="font-size:24px; color:#fff; font-weight:bold;">0</span>
-            </div>
-            <div class="rank-list" id="rankList">
-                <div style="text-align:center; color:#888;">Loading DB...</div>
-            </div>
-            <button class="btn btn-pink" onclick="resetGame()">PLAY AGAIN</button>
-            <button class="btn" style="margin-top: 10px;" onclick="logout()">LOGOUT</button>
-        </div>
-    </div>
-
-    <div id="guestModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="color: var(--neon-yellow);">MATCH COMPLETE!</h3>
-            <p style="color: #fff; font-size: 18px; margin: 15px 0;">Final Score: <span id="modalScore" style="font-size: 28px; font-weight: bold; color: var(--neon-pink);">0</span></p>
-            <p style="color: #ccc; font-size: 12px; margin-bottom: 20px;">Guests cannot save scores. Register now to claim your spot on the Global Leaderboard!</p>
-            <button class="btn btn-yellow" onclick="goToRegisterFromModal()">REGISTER NOW</button>
-            <button class="btn" style="margin-top: 10px; border-color: #555; color: #888;" onclick="skipToLeaderboard()">Skip & Continue</button>
-        </div>
+        <button id="nextBtn" class="btn" onclick="nextRound()" disabled>NEXT SHOT</button>
     </div>
 
     <script>
-        // ==========================================
-        // 🚨 请在这里填入你的 SUPABASE 密钥！🚨
-        // 注意：千万不要删掉前后的单引号 ' ' ！！！
-        // ==========================================
-        const SUPABASE_URL = 'https://trwmswrmgllbmffpphvx.supabase.co/rest/v1/';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyd21zd3JtZ2xsYm1mZnBwaHZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MTk5ODAsImV4cCI6MjA5NTE5NTk4MH0.W2pPmoBT_bBcx69Hnk74d1n-kM-X-8dIYBVDfEDuvtM';
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const FOV = 800;
+        const CX = canvas.width / 2;
+        const CY = canvas.height / 2;
+
+        let score = 0;
+        let state = 'aiming'; 
+        let time = 0; 
         
-        let supabase = null;
-        let isDbConnected = false;
-
-        // 安全初始化防崩溃机制
-        try {
-            if (SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                isDbConnected = true;
-            } else {
-                console.warn("未检测到有效的 Supabase 配置，将运行在单机断网模式。");
-            }
-        } catch (e) {
-            console.error("Supabase 初始化失败:", e);
-        }
-
-        let currentUser = null;
-        let isGuest = false;
-
-        // 检查用户是否已经登录过
-        async function checkSession() {
-            if (!isDbConnected) return; // 如果未连接数据库则跳过检查
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    currentUser = { username: session.user.user_metadata.username, email: session.user.email };
-                    isGuest = false;
-                    startGame();
-                }
-            } catch (e) {
-                console.error("获取Session失败:", e);
-            }
-        }
-        checkSession();
-
-        function toggleAuth(type) {
-            if(type === 'login') {
-                document.getElementById('tabLogin').classList.add('active'); document.getElementById('tabRegister').classList.remove('active');
-                document.getElementById('formLogin').style.display = 'block'; document.getElementById('formRegister').style.display = 'none';
-            } else {
-                document.getElementById('tabRegister').classList.add('active'); document.getElementById('tabLogin').classList.remove('active');
-                document.getElementById('formRegister').style.display = 'block'; document.getElementById('formLogin').style.display = 'none';
-            }
-        }
-
-        async function processLogin() {
-            if (!isDbConnected) return alert('数据库未连接！请先检查代码中的 URL 和 KEY 是否正确填入。');
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPwd').value;
-            if(!email || !password) return alert('请填写邮箱和密码！');
-            
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) return alert('登录失败: ' + error.message);
-            
-            currentUser = { username: data.user.user_metadata.username, email: data.user.email };
-            isGuest = false;
-            startGame();
-        }
-
-        async function processRegister() {
-            if (!isDbConnected) return alert('数据库未连接！请先检查代码中的 URL 和 KEY 是否正确填入。');
-            const username = document.getElementById('regName').value.trim();
-            const email = document.getElementById('regEmail').value.trim();
-            const password = document.getElementById('regPwd').value;
-            
-            if(!username || !email || !password) return alert('请填写所有注册信息！');
-            
-            const { data, error } = await supabase.auth.signUp({
-                email, password, options: { data: { username: username } }
-            });
-            
-            if (error) return alert('注册失败: ' + error.message);
-            alert('注册成功！正在进入系统...');
-            
-            currentUser = { username: username, email: email };
-            isGuest = false;
-            startGame();
-        }
-
-        function playAsGuest() {
-            currentUser = { username: 'Guest_' + Math.floor(Math.random() * 9000 + 1000) };
-            isGuest = true;
-            startGame();
-        }
-
-        async function logout() {
-            if (!isGuest && isDbConnected) {
-                await supabase.auth.signOut();
-            }
-            currentUser = null;
-            switchScreen('authScreen');
-        }
-
-        const MAX_ARROWS = 6;
-        let currentArrows = 0;
-
-        function startGame() {
-            document.getElementById('displayPlayer').innerText = currentUser.username;
-            switchScreen('gameScreen');
-            resetGame();
-        }
-
-        function switchScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        }
-
-        function handleGameOver() {
-            if (isGuest) {
-                document.getElementById('modalScore').innerText = score;
-                document.getElementById('guestModal').classList.add('active');
-            } else {
-                saveScoreAndShowLeaderboard();
-            }
-        }
-
-        function goToRegisterFromModal() {
-            document.getElementById('guestModal').classList.remove('active');
-            switchScreen('authScreen');
-            toggleAuth('register');
-        }
-
-        function skipToLeaderboard() {
-            document.getElementById('guestModal').classList.remove('active');
-            fetchAndShowLeaderboard(); // 游客只拉取不保存
-        }
-
-        async function saveScoreAndShowLeaderboard() {
-            document.getElementById('finalScore').innerText = score;
-            switchScreen('leaderboardScreen');
-            
-            if (!isDbConnected) {
-                document.getElementById('rankList').innerHTML = '<div style="text-align:center; color:#f0f;">未连接数据库，无法展示排行。</div>';
-                return;
-            }
-
-            document.getElementById('rankList').innerHTML = '<div style="text-align:center; color:#888;">Syncing to DB...</div>';
-
-            if(!isGuest) {
-                const { error } = await supabase.from('leaderboard').insert([{ username: currentUser.username, score: score }]);
-                if (error) console.error("Error saving score:", error);
-            }
-            fetchAndShowLeaderboard();
-        }
-
-        async function fetchAndShowLeaderboard() {
-            document.getElementById('finalScore').innerText = score;
-            switchScreen('leaderboardScreen');
-            
-            if (!isDbConnected) return;
-
-            // 从数据库拉取前10名
-            const { data, error } = await supabase.from('leaderboard')
-                .select('username, score')
-                .order('score', { ascending: false })
-                .limit(10);
-            
-            const rankListEl = document.getElementById('rankList');
-            rankListEl.innerHTML = '';
-
-            if (error) {
-                rankListEl.innerHTML = `<div style="color:red;">Error loading ranks: ${error.message}</div>`;
-                return;
-            }
-
-            let displayBoard = data || [];
-            
-            // 游客将自己的成绩虚空插入用于比对展示
-            if (isGuest) {
-                displayBoard.push({ username: currentUser.username + " (You)", score: score });
-                displayBoard.sort((a, b) => b.score - a.score);
-            }
-
-            displayBoard.forEach((entry, index) => {
-                let isMe = (entry.score === score && entry.username.includes(currentUser.username)) ? 'current-player' : '';
-                rankListEl.innerHTML += `
-                    <div class="score-row ${isMe}">
-                        <span>#${index + 1} ${entry.username}</span>
-                        <span>${entry.score} PTS</span>
-                    </div>
-                `;
-            });
-        }
-
-        function resetGame() {
-            score = 0; currentArrows = 0;
-            switchScreen('gameScreen');
-            initArrow();
-        }
-
-        /* ================= 游戏核心渲染 & 物理引擎 ================= */
-        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
-        const FOV = 800; const CX = canvas.width / 2; const CY = canvas.height / 2;
-        let score = 0; let state = 'aiming'; let time = 0; 
-        const gravity = 0.12; let wind = { x: 0, y: 0 };  
-        let power = 0; const maxPower = 45; let isCharging = false;
-        let aimPos = { x: CX, y: CY }; let shake = { x: 0, y: 0 }; let lastTouch = null;
+        const gravity = 0.12;       
+        let wind = { x: 0, y: 0 };  
+        
+        let power = 0;
+        const maxPower = 45;        
+        let isCharging = false;
+        
+        // 瞄准核心变量
+        let aimPos = { x: CX, y: CY };    // 准星实际位置
+        let shake = { x: 0, y: 0 };       // 抖动偏移向量
+        let lastTouch = null;             // 记录上一次手指的位置(用于计算相对位移)
+        
         const target = { x: 0, y: 100, z: 1500, radius: 200 };
-        let arrow = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
-        let particles = []; let floatingTexts = [];
+        
+        let arrow = { 
+            x: 0, y: 0, z: 0, 
+            vx: 0, vy: 0, vz: 0,
+            trail: []
+        };
 
-        function project(x, y, z) { if (z < -FOV) return null; const scale = FOV / (FOV + z); return { x: CX + x * scale, y: CY - y * scale, scale: scale }; }
+        let particles = [];
+        let floatingTexts = [];
 
-        function initArrow() {
-            state = 'aiming'; power = 0; isCharging = false;
-            aimPos = { x: CX, y: CY }; shake = { x: 0, y: 0 }; lastTouch = null;
+        function project(x, y, z) {
+            if (z < -FOV) return null; 
+            const scale = FOV / (FOV + z);
+            return {
+                x: CX + x * scale,
+                y: CY - y * scale, 
+                scale: scale
+            };
+        }
+
+        function initRound() {
+            state = 'aiming';
+            power = 0;
+            isCharging = false;
+            
+            // 重置准星到屏幕中心
+            aimPos = { x: CX, y: CY };
+            shake = { x: 0, y: 0 };
+            lastTouch = null;
+            
             arrow = { x: 0, y: -20, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
-            particles = []; floatingTexts = [];
-            wind.x = (Math.random() - 0.5) * 0.24; wind.y = (Math.random() - 0.5) * 0.24;
-            document.getElementById('nextBtn').disabled = true; document.getElementById('powerBar').classList.remove('power-overload'); updateUI();
+            particles = [];
+            floatingTexts = [];
+            
+            wind.x = (Math.random() - 0.5) * 0.24;
+            wind.y = (Math.random() - 0.5) * 0.24;
+            
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('powerBar').classList.remove('power-overload');
+            updateUI();
         }
 
-        function nextArrow() {
-            if(state === 'ended') {
-                if(currentArrows >= MAX_ARROWS) handleGameOver();
-                else initArrow();
-            }
+        function nextRound() {
+            if(state === 'ended') initRound();
         }
 
-        function handleAimStart(clientX, clientY) { if (state === 'aiming') { isCharging = true; power = 8; lastTouch = { x: clientX, y: clientY }; } }
-        function handleAimMove(clientX, clientY) {
-            if (state === 'aiming' && isCharging && lastTouch) {
-                const rect = canvas.getBoundingClientRect();
-                let dx = (clientX - lastTouch.x) * (canvas.width / rect.width); let dy = (clientY - lastTouch.y) * (canvas.height / rect.height);
-                aimPos.x = Math.max(0, Math.min(canvas.width, aimPos.x + dx * 1.5)); aimPos.y = Math.max(0, Math.min(canvas.height, aimPos.y + dy * 1.5));
+        // --- 触屏与鼠标统一的输入处理函数 ---
+
+        function handleAimStart(clientX, clientY) {
+            if (state === 'aiming') {
+                isCharging = true;
+                power = 8; 
                 lastTouch = { x: clientX, y: clientY };
             }
         }
-        function handleAimEnd() {
-            if (state === 'aiming' && isCharging) {
-                isCharging = false; state = 'flying'; currentArrows++; 
-                let finalX = aimPos.x + shake.x; let finalY = aimPos.y + shake.y;
-                let dx = finalX - CX; let dy = CY - finalY; let length = Math.sqrt(dx*dx + dy*dy + FOV*FOV);
-                arrow.vx = (dx / length) * power; arrow.vy = (dy / length) * power; arrow.vz = (FOV / length) * power;
-                arrow.x = 0; arrow.y = -20; arrow.z = 0; document.getElementById('powerBar').classList.remove('power-overload'); updateUI();
+
+        function handleAimMove(clientX, clientY) {
+            if (state === 'aiming' && isCharging && lastTouch) {
+                // 计算实际画布缩放比例，保证移动端手指划动距离与准星移动距离比例协调
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                let dx = (clientX - lastTouch.x) * scaleX;
+                let dy = (clientY - lastTouch.y) * scaleY;
+
+                // 灵敏度调节，可以加大系数让滑动更敏捷
+                aimPos.x += dx * 1.5;
+                aimPos.y += dy * 1.5;
+
+                // 防止准星滑出屏幕外
+                aimPos.x = Math.max(0, Math.min(canvas.width, aimPos.x));
+                aimPos.y = Math.max(0, Math.min(canvas.height, aimPos.y));
+
+                // 更新参考点
+                lastTouch = { x: clientX, y: clientY };
             }
         }
 
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleAimStart(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
-        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleAimMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
-        canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleAimEnd(); }, {passive: false});
-        canvas.addEventListener('mousedown', (e) => { if(e.button === 0) handleAimStart(e.clientX, e.clientY); });
-        canvas.addEventListener('mousemove', (e) => {
-            if (state === 'aiming' && !isCharging) { const rect = canvas.getBoundingClientRect(); aimPos.x = (e.clientX - rect.left) * (canvas.width / rect.width); aimPos.y = (e.clientY - rect.top) * (canvas.height / rect.height); } 
-            else handleAimMove(e.clientX, e.clientY);
+        function handleAimEnd() {
+            if (state === 'aiming' && isCharging) {
+                isCharging = false;
+                state = 'flying';
+                
+                // 最终射出方向要叠加抖动向量
+                let finalX = aimPos.x + shake.x;
+                let finalY = aimPos.y + shake.y;
+
+                let dx = finalX - CX;
+                let dy = CY - finalY; 
+                let length = Math.sqrt(dx*dx + dy*dy + FOV*FOV);
+                
+                arrow.vx = (dx / length) * power;
+                arrow.vy = (dy / length) * power;
+                arrow.vz = (FOV / length) * power;
+                
+                arrow.x = 0;
+                arrow.y = -20;
+                arrow.z = 0;
+                
+                document.getElementById('powerBar').classList.remove('power-overload');
+            }
+        }
+
+        // --- 事件监听 (Touch 移动端) ---
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            handleAimStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handleAimMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleAimEnd();
+        }, {passive: false});
+
+        // --- 事件监听 (Mouse PC端兼容) ---
+        canvas.addEventListener('mousedown', (e) => {
+            if(e.button === 0) handleAimStart(e.clientX, e.clientY);
         });
-        canvas.addEventListener('mouseup', (e) => { if(e.button === 0) handleAimEnd(); });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            // 在PC上如果没蓄力，鼠标悬停直接绝对控制准星，方便找点；一旦按下开始蓄力，切换为相对滑动。
+            if (state === 'aiming' && !isCharging) {
+                const rect = canvas.getBoundingClientRect();
+                aimPos.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                aimPos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            } else {
+                handleAimMove(e.clientX, e.clientY);
+            }
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            if(e.button === 0) handleAimEnd();
+        });
+
 
         function updateUI() {
-            document.getElementById('score').innerText = score; document.getElementById('displayArrows').innerText = `${currentArrows}/${MAX_ARROWS}`;
-            const bar = document.getElementById('powerBar'); bar.style.width = Math.min((power / maxPower) * 100, 100) + '%';
-            if(power >= maxPower) bar.classList.add('power-overload'); else bar.classList.remove('power-overload');
-            if(state === 'ended') document.getElementById('nextBtn').innerText = currentArrows >= MAX_ARROWS ? "FINISH" : "NEXT";
+            document.getElementById('score').innerText = score;
+            const bar = document.getElementById('powerBar');
+            bar.style.width = Math.min((power / maxPower) * 100, 100) + '%';
+            
+            // 变色逻辑
+            if(power >= maxPower) {
+                bar.classList.add('power-overload');
+            } else {
+                bar.classList.remove('power-overload');
+            }
         }
 
         function triggerHitEffect(hitX, hitY, hitZ, points, isCrit) {
-            const hitProj = project(hitX, hitY, hitZ); if(!hitProj) return;
-            for(let i = 0; i < 30; i++) particles.push({ x: hitProj.x, y: hitProj.y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: 1.0, color: isCrit ? '#ffeb3b' : (points > 6 ? '#f0f' : '#0ff') });
-            let textStr = `+${points}`; let fontSize = 30; let color = '#0ff'; 
-            if (isCrit) { textStr = `CRITICAL! +10`; fontSize = 60; color = '#ffeb3b'; } else if (points >= 8) { fontSize = 45; color = '#f0f'; } else if (points <= 3) { fontSize = 20; color = '#888'; }
-            floatingTexts.push({ x: hitProj.x, y: hitProj.y, text: textStr, life: 1.0, size: fontSize, color: color, vy: -3 - Math.random() * 2, vx: (Math.random() - 0.5) * 2 });
+            const hitProj = project(hitX, hitY, hitZ);
+            if(!hitProj) return;
+
+            for(let i = 0; i < 30; i++) {
+                particles.push({
+                    x: hitProj.x,
+                    y: hitProj.y,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 1.0,
+                    color: isCrit ? '#ffeb3b' : (points > 6 ? '#f0f' : '#0ff')
+                });
+            }
+
+            let textStr = `+${points}`;
+            let fontSize = 30;
+            let color = '#0ff'; 
+
+            if (isCrit) {
+                textStr = `CRITICAL! +10`;
+                fontSize = 60;
+                color = '#ffeb3b'; 
+            } else if (points >= 8) {
+                fontSize = 45;
+                color = '#f0f'; 
+            } else if (points <= 3) {
+                fontSize = 20;
+                color = '#888'; 
+            }
+
+            floatingTexts.push({
+                x: hitProj.x,
+                y: hitProj.y,
+                text: textStr,
+                life: 1.0,
+                size: fontSize,
+                color: color,
+                vy: -3 - Math.random() * 2, 
+                vx: (Math.random() - 0.5) * 2
+            });
         }
 
         function update() {
             time += 0.05; 
-            for (let i = floatingTexts.length - 1; i >= 0; i--) { let ft = floatingTexts[i]; ft.y += ft.vy; ft.x += ft.vx; ft.vy += 0.1; ft.life -= 0.015; if (ft.life <= 0) floatingTexts.splice(i, 1); }
-            for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life -= 0.03; if (p.life <= 0) particles.splice(i, 1); }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.x += ft.vx;
+                ft.vy += 0.1; 
+                ft.life -= 0.015;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.9; 
+                p.vy *= 0.9;
+                p.life -= 0.03;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
 
             if (state === 'aiming') {
                 if (isCharging) {
-                    power += 0.5; if (power >= maxPower) { power = maxPower; shake.x = (Math.random() - 0.5) * 20; shake.y = (Math.random() - 0.5) * 20; } else { shake.x = 0; shake.y = 0; }
+                    power += 0.5; 
+                    if (power >= maxPower) {
+                        power = maxPower;
+                        // 【核心机制】蓄力过载引发随机剧烈抖动
+                        shake.x = (Math.random() - 0.5) * 20;
+                        shake.y = (Math.random() - 0.5) * 20;
+                    } else {
+                        shake.x = 0;
+                        shake.y = 0;
+                    }
                     updateUI();
                 }
             } else if (state === 'flying') {
-                arrow.trail.push({x: arrow.x, y: arrow.y, z: arrow.z}); if (arrow.trail.length > 25) arrow.trail.shift();
-                let prevZ = arrow.z; let prevX = arrow.x; let prevY = arrow.y;
-                arrow.vy -= gravity; arrow.vx += wind.x; arrow.vy += wind.y;    
-                arrow.x += arrow.vx; arrow.y += arrow.vy; arrow.z += arrow.vz;
+                arrow.trail.push({x: arrow.x, y: arrow.y, z: arrow.z});
+                if (arrow.trail.length > 25) arrow.trail.shift();
+
+                let prevZ = arrow.z;
+                let prevX = arrow.x;
+                let prevY = arrow.y;
+
+                arrow.vy -= gravity;   
+                arrow.vx += wind.x;    
+                arrow.vy += wind.y;    
+                
+                arrow.x += arrow.vx;
+                arrow.y += arrow.vy;
+                arrow.z += arrow.vz;
 
                 if (prevZ < target.z && arrow.z >= target.z) {
-                    state = 'ended'; let t = (target.z - prevZ) / (arrow.z - prevZ);
-                    let hitX = prevX + t * (arrow.x - prevX); let hitY = prevY + t * (arrow.y - prevY); let dist = Math.hypot(hitX - target.x, hitY - target.y);
+                    state = 'ended';
+                    
+                    let t = (target.z - prevZ) / (arrow.z - prevZ);
+                    let hitX = prevX + t * (arrow.x - prevX);
+                    let hitY = prevY + t * (arrow.y - prevY);
+
+                    let dist = Math.hypot(hitX - target.x, hitY - target.y);
+                    
                     if (dist <= target.radius) {
-                        let ringWidth = target.radius / 10; let points = 11 - Math.ceil(dist / ringWidth);
-                        if (points < 1) points = 1; if (points > 10) points = 10;
-                        let isCrit = false; if (dist <= ringWidth / 2) { isCrit = true; points = 10; }
-                        score += points; triggerHitEffect(hitX, hitY, target.z, points, isCrit);
-                    } else floatingTexts.push({ x: CX, y: CY, text: "MISS", life: 1.0, size: 40, color: '#ff3333', vy: -2, vx: 0 });
-                    arrow.x = hitX; arrow.y = hitY; arrow.z = target.z; document.getElementById('nextBtn').disabled = false; updateUI();
-                } else if (arrow.y < -150) {
-                    state = 'ended'; floatingTexts.push({ x: CX, y: CY + 100, text: "GROUNDED", life: 1.0, size: 30, color: '#888', vy: -1, vx: 0 });
-                    document.getElementById('nextBtn').disabled = false; updateUI();
+                        let ringWidth = target.radius / 10;
+                        let points = 11 - Math.ceil(dist / ringWidth);
+                        
+                        if (points < 1) points = 1; 
+                        if (points > 10) points = 10;
+                        
+                        let isCrit = false;
+                        if (dist <= ringWidth / 2) {
+                            isCrit = true;
+                            points = 10;
+                        }
+                        score += points;
+                        triggerHitEffect(hitX, hitY, target.z, points, isCrit);
+                    } else {
+                        floatingTexts.push({
+                            x: CX, y: CY, text: "MISS", life: 1.0, size: 40, color: '#ff3333', vy: -2, vx: 0
+                        });
+                    }
+                    
+                    arrow.x = hitX;
+                    arrow.y = hitY;
+                    arrow.z = target.z;
+                    
+                    document.getElementById('nextBtn').disabled = false;
+                    updateUI();
+                }
+                else if (arrow.y < -150) {
+                    state = 'ended';
+                    floatingTexts.push({
+                        x: CX, y: CY + 100, text: "GROUNDED", life: 1.0, size: 30, color: '#888', vy: -1, vx: 0
+                    });
+                    document.getElementById('nextBtn').disabled = false;
                 }
             }
         }
 
         function drawCyberGrid() {
-            ctx.save(); ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)'; ctx.lineWidth = 1;
-            for(let i = -10; i <= 10; i++) { let p1 = project(i * 200, -50, 0); let p2 = project(i * 200, -50, 2000); if(p1 && p2) { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); } }
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+
+            for(let i = -10; i <= 10; i++) {
+                let x = i * 200;
+                let p1 = project(x, -50, 0); 
+                let p2 = project(x, -50, 2000); 
+                if(p1 && p2) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+
             let zOffset = (time * 50) % 200;
             for(let i = 0; i < 15; i++) {
-                let z = i * 200 - zOffset; if (z < 0) continue;
-                let pLeft = project(-2000, -50, z); let pRight = project(2000, -50, z);
-                if(pLeft && pRight) { let alpha = Math.max(0, 1 - (z / 2000)); ctx.strokeStyle = `rgba(255, 0, 255, ${alpha * 0.3})`; ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(pRight.x, pRight.y); ctx.stroke(); }
-            } ctx.restore();
+                let z = i * 200 - zOffset;
+                if (z < 0) continue;
+                let pLeft = project(-2000, -50, z);
+                let pRight = project(2000, -50, z);
+                if(pLeft && pRight) {
+                    let alpha = Math.max(0, 1 - (z / 2000));
+                    ctx.strokeStyle = `rgba(255, 0, 255, ${alpha * 0.3})`;
+                    ctx.beginPath();
+                    ctx.moveTo(pLeft.x, pLeft.y);
+                    ctx.lineTo(pRight.x, pRight.y);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
         }
 
         function drawTarget() {
-            const pTarget = project(target.x, target.y, target.z); if (!pTarget) return;
-            ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = '#f0f'; ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
-            ctx.fillRect(pTarget.x - 2 * pTarget.scale, pTarget.y, 4 * pTarget.scale, canvas.height - pTarget.y); ctx.strokeStyle = '#0ff'; ctx.strokeRect(pTarget.x - 2 * pTarget.scale, pTarget.y, 4 * pTarget.scale, canvas.height - pTarget.y);
-            for(let i = 0; i < 10; i++) {
-                ctx.beginPath(); let r = (target.radius - i * (target.radius / 10)) * pTarget.scale; ctx.arc(pTarget.x, pTarget.y, r, 0, Math.PI * 2);
-                if (i <= 3) { ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)'; ctx.shadowColor = '#0ff'; } else if (i <= 7) { ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)'; ctx.shadowColor = '#f0f'; } else { ctx.strokeStyle = 'rgba(255, 235, 59, 1)'; ctx.shadowColor = '#ffeb3b'; }
-                ctx.lineWidth = (i % 2 === 0 ? 2 : 1) * pTarget.scale; ctx.stroke();
+            const pTarget = project(target.x, target.y, target.z);
+            if (!pTarget) return;
+
+            ctx.save();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#f0f';
+
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
+            ctx.fillRect(pTarget.x - 2 * pTarget.scale, pTarget.y, 4 * pTarget.scale, canvas.height - pTarget.y);
+            ctx.strokeStyle = '#0ff';
+            ctx.strokeRect(pTarget.x - 2 * pTarget.scale, pTarget.y, 4 * pTarget.scale, canvas.height - pTarget.y);
+
+            const rings = 10;
+            for(let i = 0; i < rings; i++) {
+                ctx.beginPath();
+                let r = (target.radius - i * (target.radius / rings)) * pTarget.scale;
+                ctx.arc(pTarget.x, pTarget.y, r, 0, Math.PI * 2);
+                
+                if (i <= 3) {
+                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+                    ctx.shadowColor = '#0ff';
+                } else if (i <= 7) {
+                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)';
+                    ctx.shadowColor = '#f0f';
+                } else {
+                    ctx.strokeStyle = 'rgba(255, 235, 59, 1)';
+                    ctx.shadowColor = '#ffeb3b';
+                }
+                
+                ctx.lineWidth = (i % 2 === 0 ? 2 : 1) * pTarget.scale;
+                ctx.stroke();
             }
-            ctx.beginPath(); let crossR = (target.radius / 10) * pTarget.scale; ctx.moveTo(pTarget.x - crossR, pTarget.y); ctx.lineTo(pTarget.x + crossR, pTarget.y); ctx.moveTo(pTarget.x, pTarget.y - crossR); ctx.lineTo(pTarget.x, pTarget.y + crossR); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+
+            ctx.beginPath();
+            let crossR = (target.radius / 10) * pTarget.scale;
+            ctx.moveTo(pTarget.x - crossR, pTarget.y);
+            ctx.lineTo(pTarget.x + crossR, pTarget.y);
+            ctx.moveTo(pTarget.x, pTarget.y - crossR);
+            ctx.lineTo(pTarget.x, pTarget.y + crossR);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
         }
 
         function drawArrowAndTrail() {
             if (arrow.trail.length > 1) {
-                ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.shadowBlur = 10; ctx.shadowColor = '#0ff'; ctx.beginPath(); let started = false;
-                for (let i = 0; i < arrow.trail.length; i++) { let pProj = project(arrow.trail[i].x, arrow.trail[i].y, arrow.trail[i].z); if (pProj) { if (!started) { ctx.moveTo(pProj.x, pProj.y); started = true; } else ctx.lineTo(pProj.x, pProj.y); } }
-                ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; ctx.stroke(); ctx.restore();
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#0ff';
+                
+                ctx.beginPath();
+                let started = false;
+                for (let i = 0; i < arrow.trail.length; i++) {
+                    let pt = arrow.trail[i];
+                    let pProj = project(pt.x, pt.y, pt.z);
+                    if (pProj) {
+                        if (!started) {
+                            ctx.moveTo(pProj.x, pProj.y);
+                            started = true;
+                        } else {
+                            ctx.lineTo(pProj.x, pProj.y);
+                        }
+                    }
+                }
+                
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+                ctx.stroke();
+                ctx.restore();
             }
+
             if (state === 'flying' || state === 'ended') {
-                const pHead = project(arrow.x, arrow.y, arrow.z); let vLen = Math.hypot(arrow.vx, arrow.vy, arrow.vz) || 1;
-                const pTail = project(arrow.x - (arrow.vx / vLen) * 60, arrow.y - (arrow.vy / vLen) * 60, arrow.z - (arrow.vz / vLen) * 60);
+                const pHead = project(arrow.x, arrow.y, arrow.z);
+                let tailLen = 60;
+                let vLen = Math.hypot(arrow.vx, arrow.vy, arrow.vz) || 1;
+                let tailX = arrow.x - (arrow.vx / vLen) * tailLen;
+                let tailY = arrow.y - (arrow.vy / vLen) * tailLen;
+                let tailZ = arrow.z - (arrow.vz / vLen) * tailLen;
+                const pTail = project(tailX, tailY, tailZ);
+
                 if (pHead && pTail) {
-                    ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = '#f0f'; ctx.beginPath(); ctx.moveTo(pTail.x, pTail.y); ctx.lineTo(pHead.x, pHead.y);
-                    ctx.lineWidth = Math.max(2, 5 * pHead.scale); ctx.strokeStyle = '#ff00ff'; ctx.lineCap = 'round'; ctx.stroke();
-                    ctx.beginPath(); ctx.arc(pHead.x, pHead.y, Math.max(2, 4 * pHead.scale), 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
+                    ctx.save();
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#f0f';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(pTail.x, pTail.y);
+                    ctx.lineTo(pHead.x, pHead.y);
+                    ctx.lineWidth = Math.max(2, 5 * pHead.scale); 
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(pHead.x, pHead.y, Math.max(2, 4 * pHead.scale), 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                    ctx.restore();
                 }
             }
         }
 
         function drawEffects() {
-            ctx.save(); ctx.globalCompositeOperation = 'lighter';
-            for (let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, 2 + Math.random() * 2, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fill(); } ctx.restore();
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (let p of particles) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2 + Math.random() * 2, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fill();
+            }
+            ctx.restore();
+
             for (let ft of floatingTexts) {
-                ctx.save(); ctx.font = `italic 900 ${ft.size}px 'Orbitron', sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = ft.color; ctx.globalAlpha = Math.max(0, ft.life);
-                let xOff = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0; let yOff = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0;
-                ctx.shadowBlur = 10; ctx.shadowColor = ft.color; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.strokeText(ft.text, ft.x + xOff, ft.y + yOff); ctx.fillText(ft.text, ft.x + xOff, ft.y + yOff); ctx.restore();
+                ctx.save();
+                ctx.font = `italic 900 ${ft.size}px 'Orbitron', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = ft.color;
+                ctx.globalAlpha = Math.max(0, ft.life);
+                
+                let xOffset = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0;
+                let yOffset = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0;
+
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = ft.color;
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#fff';
+                ctx.strokeText(ft.text, ft.x + xOffset, ft.y + yOffset);
+                ctx.fillText(ft.text, ft.x + xOffset, ft.y + yOffset);
+                
+                ctx.restore();
             }
         }
 
         function drawHUD() {
-            const cx = 50; const cy = 50; const r = 30; ctx.save(); ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r + 5, -Math.PI/4, Math.PI/4); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r + 5, Math.PI - Math.PI/4, Math.PI + Math.PI/4); ctx.stroke();
-            ctx.fillStyle = 'rgba(0, 20, 40, 0.5)'; ctx.fill();
+            // 风向仪 (左上角)
+            const cx = 70;
+            const cy = 70;
+            const r = 35;
+            
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+            ctx.lineWidth = 1.5;
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 5, -Math.PI/4, Math.PI/4);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 5, Math.PI - Math.PI/4, Math.PI + Math.PI/4);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.5)';
+            ctx.fill();
+
             let windMag = Math.hypot(wind.x, wind.y);
             if(windMag > 0.01) {
-                ctx.translate(cx, cy); ctx.rotate(Math.atan2(-wind.y, wind.x)); ctx.beginPath(); ctx.moveTo(0, 0); let lineLen = Math.min((windMag / 0.15) * r, r);
-                ctx.lineTo(lineLen, 0); ctx.lineTo(lineLen - 8, -5); ctx.moveTo(lineLen, 0); ctx.lineTo(lineLen - 8, 5); ctx.strokeStyle = '#f0f'; ctx.shadowBlur = 10; ctx.shadowColor = '#f0f'; ctx.lineWidth = 3; ctx.stroke();
-            } ctx.restore();
-            ctx.fillStyle = '#0ff'; ctx.font = '9px "Orbitron"'; ctx.textAlign = 'center'; ctx.fillText(`WIND: ${(windMag * 100).toFixed(1)}`, cx, cy + r + 15);
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.atan2(-wind.y, wind.x)); 
+                
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                let lineLen = Math.min((windMag / 0.15) * r, r);
+                ctx.lineTo(lineLen, 0);
+                ctx.lineTo(lineLen - 8, -5);
+                ctx.moveTo(lineLen, 0);
+                ctx.lineTo(lineLen - 8, 5);
+                
+                ctx.strokeStyle = '#f0f';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#f0f';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.fillStyle = '#0ff';
+            ctx.font = '10px "Orbitron"';
+            ctx.textAlign = 'center';
+            ctx.fillText(`WIND: ${(windMag * 100).toFixed(1)}`, cx, cy + r + 20);
+            
+            // 瞄准状态下的准星和弓形反馈
             if (state === 'aiming') {
-                let currentAimX = aimPos.x + shake.x; let currentAimY = aimPos.y + shake.y; ctx.save(); let rColor = Math.floor((power / maxPower) * 255); let gColor = 255 - rColor;
-                ctx.strokeStyle = `rgb(${rColor}, ${gColor}, 255)`; ctx.lineWidth = 2; ctx.shadowBlur = 8; ctx.shadowColor = ctx.strokeStyle; ctx.translate(currentAimX, currentAimY);
-                ctx.rotate(time); ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 1.5); ctx.stroke(); ctx.rotate(-time * 2); ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(15, 0); ctx.moveTo(0, -15); ctx.lineTo(0, 15); ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
-                let bowX = CX + (currentAimX - CX) * 0.05; let bowY = canvas.height - 10 + (currentAimY - CY) * 0.05; ctx.save(); ctx.beginPath(); ctx.arc(bowX, bowY, 80, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)'; ctx.lineWidth = 4; ctx.stroke();
-                if(isCharging) { ctx.shadowBlur = 15; let pull = (power / maxPower); ctx.shadowColor = pull >= 1 ? '#ff0000' : '#f0f'; ctx.beginPath(); ctx.arc(bowX, bowY + pull * 30, 80, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = `rgb(${pull*255}, ${255 - pull*255}, 255)`; ctx.lineWidth = 6; ctx.stroke(); } ctx.restore();
+                // 计算加上抖动偏移后的实时渲染坐标
+                let currentAimX = aimPos.x + shake.x;
+                let currentAimY = aimPos.y + shake.y;
+
+                ctx.save();
+                // 蓄力越满，准星越红
+                let rColor = Math.floor((power / maxPower) * 255);
+                let gColor = 255 - rColor;
+                ctx.strokeStyle = `rgb(${rColor}, ${gColor}, 255)`;
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = ctx.strokeStyle;
+                
+                ctx.translate(currentAimX, currentAimY);
+                
+                // 准星外圈动画
+                ctx.rotate(time);
+                ctx.beginPath();
+                ctx.arc(0, 0, 25, 0, Math.PI * 1.5);
+                ctx.stroke();
+                
+                // 准星内十字
+                ctx.rotate(-time * 2);
+                ctx.beginPath();
+                ctx.moveTo(-15, 0); ctx.lineTo(15, 0);
+                ctx.moveTo(0, -15); ctx.lineTo(0, 15);
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.restore();
+
+                // 底部能量弓动画跟随抖动准星
+                let bowX = CX + (currentAimX - CX) * 0.05;
+                let bowY = canvas.height - 10 + (currentAimY - CY) * 0.05;
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(bowX, bowY, 80, Math.PI * 1.1, Math.PI * 1.9);
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                
+                if(isCharging) {
+                    ctx.shadowBlur = 15;
+                    let pull = (power / maxPower);
+                    ctx.shadowColor = pull >= 1 ? '#ff0000' : '#f0f';
+                    ctx.beginPath();
+                    ctx.arc(bowX, bowY + pull * 30, 80, Math.PI * 1.1, Math.PI * 1.9);
+                    ctx.strokeStyle = `rgb(${pull*255}, ${255 - pull*255}, 255)`;
+                    ctx.lineWidth = 6;
+                    ctx.stroke();
+                }
+                ctx.restore();
             }
         }
 
-        function draw() { ctx.clearRect(0, 0, canvas.width, canvas.height); drawCyberGrid(); drawTarget(); drawArrowAndTrail(); drawEffects(); drawHUD(); }
-        function loop() { if(document.getElementById('gameScreen').classList.contains('active')) { update(); draw(); } requestAnimationFrame(loop); }
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawCyberGrid();
+            drawTarget();
+            drawArrowAndTrail();
+            drawEffects();
+            drawHUD();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        initRound();
         loop();
     </script>
 </body>
