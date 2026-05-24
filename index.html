@@ -30,41 +30,42 @@
             letter-spacing: 2px;
             font-size: clamp(1.2rem, 4vw, 1.5rem);
         }
+       /* 新增：隐藏页面滚动条 */
+        body { overflow: hidden; }
+
         .game-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 900px;
-            display: flex;
-            justify-content: center;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
         }
         canvas {
             width: 100%;
-            height: auto;
-            max-height: 65vh;
+            height: 100%;
             background: transparent;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 20px rgba(255, 0, 255, 0.2);
-            border: 2px solid rgba(0, 255, 255, 0.5);
-            border-radius: 8px;
             cursor: crosshair;
-            object-fit: contain;
+            display: block;
         }
         .ui-panel {
-            margin-top: 15px;
-            background: rgba(10, 10, 25, 0.8);
-            backdrop-filter: blur(5px);
+            position: absolute;
+            bottom: 25px; /* 悬浮在屏幕底部 */
+            left: 5%;
+            width: 90%;
+            background: rgba(10, 10, 25, 0.75);
+            backdrop-filter: blur(8px);
             padding: 15px 20px;
             border-radius: 8px;
             border: 1px solid #f0f;
             box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
             display: flex;
-            flex-wrap: wrap; /* 允许在窄屏手机上换行 */
+            flex-wrap: wrap; 
             justify-content: center;
             align-items: center;
             gap: 20px;
             font-size: 14px;
-            width: 100%;
-            max-width: 860px;
             box-sizing: border-box;
+            z-index: 10; /* 保证 UI 浮在游戏上方 */
         }
         .stat-box {
             display: flex;
@@ -163,8 +164,18 @@
         const ctx = canvas.getContext('2d');
 
         const FOV = 800;
-        const CX = canvas.width / 2;
-        const CY = canvas.height / 2;
+        let CX = 0;
+        let CY = 0;
+
+        // 新增动态调整画布分辨率的函数
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            CX = canvas.width / 2;
+            CY = canvas.height * 0.42; // 将地平线稍微往上抬，给底部UI留出空间
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // 初始化时执行一次
 
         let score = 0;
         let state = 'aiming'; 
@@ -182,7 +193,7 @@
         let shake = { x: 0, y: 0 };       // 抖动偏移向量
         let lastTouch = null;             // 记录上一次手指的位置(用于计算相对位移)
         
-        const target = { x: 0, y: 100, z: 1500, radius: 400 };
+        const target = { x: 0, y: 350, z: 1200, radius: 400 };
         
         let arrow = { 
             x: 0, y: 0, z: 0, 
@@ -468,7 +479,7 @@
                     document.getElementById('nextBtn').disabled = false;
                     updateUI();
                 }
-                else if (arrow.y < -150) {
+                else if (arrow.y < -300) {
                     state = 'ended';
                     floatingTexts.push({
                         x: CX, y: CY + 100, text: "GROUNDED", life: 1.0, size: 30, color: '#888', vy: -1, vx: 0
