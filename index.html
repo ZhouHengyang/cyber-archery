@@ -3,93 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>赛博朋克 - 霓虹射箭 (移动端适配)</title>
+    <title>赛博朋克 - 霓虹射箭 (竖屏终极版)</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&display=swap');
 
         body {
             margin: 0;
-            padding: 10px;
+            padding: 0;
             background-color: #050510;
-            background-image: radial-gradient(circle at 50% 0%, #200040 0%, #050510 70%);
+            background-image: radial-gradient(circle at 50% 0%, #200040 0%, #050510 80%);
             color: #0ff;
             font-family: 'Orbitron', 'Segoe UI', sans-serif;
-            text-align: center;
-            overflow: hidden;
-            /* 防止移动端默认的手势操作（如下拉刷新、滑动前进后退） */
-            touch-action: none; 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            overflow: hidden; /* 完全禁用滚动 */
+            touch-action: none; /* 彻底阻止手机默认下拉/返回手势 */
         }
+        
+        /* 全屏游戏画布 */
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* 顶部标题栏 */
         h2 { 
-            margin-top: 10px; margin-bottom: 15px; 
+            position: absolute;
+            top: env(safe-area-inset-top, 15px); /* 适配刘海屏 */
+            left: 0;
+            width: 100%;
+            text-align: center;
+            margin: 15px 0 0 0; 
             color: #fff;
             text-shadow: 0 0 5px #f0f, 0 0 10px #f0f, 0 0 20px #f0f;
             letter-spacing: 2px;
-            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            font-size: 1.2rem;
+            z-index: 10;
+            pointer-events: none;
         }
-        .game-wrapper {
-            position: relative;
-            width: 100%;
-            max-width: 900px;
-            display: flex;
-            justify-content: center;
-        }
-        canvas {
-            width: 100%;
-            height: auto;
-            max-height: 65vh;
-            background: transparent;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2), inset 0 0 20px rgba(255, 0, 255, 0.2);
-            border: 2px solid rgba(0, 255, 255, 0.5);
-            border-radius: 8px;
-            cursor: crosshair;
-            object-fit: contain;
-        }
+
+        /* 底部悬浮控制面板 */
         .ui-panel {
-            margin-top: 15px;
-            background: rgba(10, 10, 25, 0.8);
-            backdrop-filter: blur(5px);
-            padding: 15px 20px;
-            border-radius: 8px;
+            position: absolute;
+            bottom: env(safe-area-inset-bottom, 25px); /* 适配全面屏底部横条 */
+            left: 5%;
+            width: 90%;
+            background: rgba(10, 10, 25, 0.75);
+            backdrop-filter: blur(8px);
             border: 1px solid #f0f;
-            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
-            display: flex;
-            flex-wrap: wrap; /* 允许在窄屏手机上换行 */
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            font-size: 14px;
-            width: 100%;
-            max-width: 860px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3), inset 0 0 10px rgba(0, 255, 255, 0.1);
+            padding: 15px;
             box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            z-index: 10;
         }
+
         .stat-box {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 5px;
-            text-transform: uppercase;
+            font-size: 11px;
+            color: var(--neon-pink);
             letter-spacing: 1px;
         }
+
         .stat-value {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 800;
             color: #fff;
             text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
         }
+
         .power-bar-container {
-            width: 150px;
-            height: 18px;
-            background: rgba(0,0,0,0.6);
+            width: 100%;
+            height: 14px;
+            background: rgba(0,0,0,0.8);
             border-radius: 4px;
-            border: 2px solid #0ff;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            border: 1px solid #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
             overflow: hidden;
             position: relative;
+            margin-top: 5px;
         }
+
         #powerBar {
             width: 0%;
             height: 100%;
@@ -97,32 +101,37 @@
             box-shadow: 0 0 10px #f0f;
             transition: width 0.05s linear;
         }
-        /* 过载时的红条闪烁动画 */
+
         .power-overload { background: #ff0000 !important; box-shadow: 0 0 15px #ff0000 !important; }
         
         .btn {
-            padding: 10px 20px;
+            grid-column: span 2; /* 按钮占据底部两列满宽 */
+            padding: 14px;
             font-family: 'Orbitron', sans-serif;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
             border: 2px solid #0ff;
-            border-radius: 4px;
-            background: transparent;
+            border-radius: 6px;
+            background: rgba(0, 255, 255, 0.1);
             color: #0ff;
             text-shadow: 0 0 5px #0ff;
-            box-shadow: inset 0 0 10px rgba(0,255,255,0.3), 0 0 10px rgba(0,255,255,0.3);
+            box-shadow: inset 0 0 10px rgba(0,255,255,0.3);
             transition: all 0.2s;
             text-transform: uppercase;
         }
+
         .btn:hover:not(:disabled) { 
-            background: rgba(0, 255, 255, 0.2); 
+            background: rgba(0, 255, 255, 0.25); 
             box-shadow: inset 0 0 20px rgba(0,255,255,0.6), 0 0 20px rgba(0,255,255,0.6);
         }
+
         .btn:disabled { 
-            border-color: #555; color: #555; text-shadow: none; box-shadow: none; cursor: not-allowed; 
+            border-color: #444; color: #666; background: rgba(0,0,0,0.5); text-shadow: none; box-shadow: none; cursor: not-allowed; 
         }
-        .game-wrapper::after {
+
+        /* 扫描线效果覆盖全屏 */
+        body::after {
             content: " ";
             display: block;
             position: absolute;
@@ -136,11 +145,9 @@
 </head>
 <body>
 
-    <h2>🏹 CYBER-ARCHERY: MOBILE PROTOCOL</h2>
+    <h2>🏹 CYBER-ARCHERY</h2>
     
-    <div class="game-wrapper">
-        <canvas id="gameCanvas" width="900" height="600"></canvas>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
     <div class="ui-panel">
         <div class="stat-box">
@@ -162,9 +169,21 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // 3D 引擎常数
         const FOV = 800;
-        const CX = canvas.width / 2;
-        const CY = canvas.height / 2;
+        let CX = 0;
+        let CY = 0;
+
+        // 动态调整画布尺寸，真正消除留白
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            CX = canvas.width / 2;
+            // 竖屏下将中心点(地平线)稍微往上抬，给底部UI留出充足空间
+            CY = canvas.height * 0.42; 
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
         let score = 0;
         let state = 'aiming'; 
@@ -177,30 +196,23 @@
         const maxPower = 45;        
         let isCharging = false;
         
-        // 瞄准核心变量
-        let aimPos = { x: CX, y: CY };    // 准星实际位置
-        let shake = { x: 0, y: 0 };       // 抖动偏移向量
-        let lastTouch = null;             // 记录上一次手指的位置(用于计算相对位移)
+        let aimPos = { x: CX, y: CY };    
+        let shake = { x: 0, y: 0 };       
+        let lastTouch = null;             
         
-        const target = { x: 0, y: 100, z: 1500, radius: 200 };
+        // 【核心修改】放大靶子，调近距离
+        // radius: 400 使得在手机屏幕上，靶子能占据70%-80%的宽度
+        // y: 350 将其抬高，避免陷入地下
+        const target = { x: 0, y: 350, z: 1200, radius: 400 };
         
-        let arrow = { 
-            x: 0, y: 0, z: 0, 
-            vx: 0, vy: 0, vz: 0,
-            trail: []
-        };
-
+        let arrow = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
         let particles = [];
         let floatingTexts = [];
 
         function project(x, y, z) {
             if (z < -FOV) return null; 
             const scale = FOV / (FOV + z);
-            return {
-                x: CX + x * scale,
-                y: CY - y * scale, 
-                scale: scale
-            };
+            return { x: CX + x * scale, y: CY - y * scale, scale: scale };
         }
 
         function initRound() {
@@ -208,12 +220,12 @@
             power = 0;
             isCharging = false;
             
-            // 重置准星到屏幕中心
             aimPos = { x: CX, y: CY };
             shake = { x: 0, y: 0 };
             lastTouch = null;
             
-            arrow = { x: 0, y: -20, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
+            // 箭初始Y坐标稍低一点，模拟从手中射出
+            arrow = { x: 0, y: -50, z: 0, vx: 0, vy: 0, vz: 0, trail: [] };
             particles = [];
             floatingTexts = [];
             
@@ -229,8 +241,6 @@
             if(state === 'ended') initRound();
         }
 
-        // --- 触屏与鼠标统一的输入处理函数 ---
-
         function handleAimStart(clientX, clientY) {
             if (state === 'aiming') {
                 isCharging = true;
@@ -241,23 +251,17 @@
 
         function handleAimMove(clientX, clientY) {
             if (state === 'aiming' && isCharging && lastTouch) {
-                // 计算实际画布缩放比例，保证移动端手指划动距离与准星移动距离比例协调
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
+                // 滑动相对坐标计算 (因为Canvas是100vw/vh，所以比例为1)
+                let dx = (clientX - lastTouch.x);
+                let dy = (clientY - lastTouch.y);
 
-                let dx = (clientX - lastTouch.x) * scaleX;
-                let dy = (clientY - lastTouch.y) * scaleY;
-
-                // 灵敏度调节，可以加大系数让滑动更敏捷
+                // 灵敏度
                 aimPos.x += dx * 1.5;
                 aimPos.y += dy * 1.5;
 
-                // 防止准星滑出屏幕外
                 aimPos.x = Math.max(0, Math.min(canvas.width, aimPos.x));
                 aimPos.y = Math.max(0, Math.min(canvas.height, aimPos.y));
 
-                // 更新参考点
                 lastTouch = { x: clientX, y: clientY };
             }
         }
@@ -267,7 +271,6 @@
                 isCharging = false;
                 state = 'flying';
                 
-                // 最终射出方向要叠加抖动向量
                 let finalX = aimPos.x + shake.x;
                 let finalY = aimPos.y + shake.y;
 
@@ -280,61 +283,36 @@
                 arrow.vz = (FOV / length) * power;
                 
                 arrow.x = 0;
-                arrow.y = -20;
+                arrow.y = -50;
                 arrow.z = 0;
                 
                 document.getElementById('powerBar').classList.remove('power-overload');
             }
         }
 
-        // --- 事件监听 (Touch 移动端) ---
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
-            handleAimStart(e.touches[0].clientX, e.touches[0].clientY);
-        }, {passive: false});
+        // 触摸与鼠标事件
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleAimStart(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleAimMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); handleAimEnd(); }, {passive: false});
 
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            handleAimMove(e.touches[0].clientX, e.touches[0].clientY);
-        }, {passive: false});
-
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            handleAimEnd();
-        }, {passive: false});
-
-        // --- 事件监听 (Mouse PC端兼容) ---
-        canvas.addEventListener('mousedown', (e) => {
-            if(e.button === 0) handleAimStart(e.clientX, e.clientY);
-        });
-        
+        canvas.addEventListener('mousedown', (e) => { if(e.button === 0) handleAimStart(e.clientX, e.clientY); });
         canvas.addEventListener('mousemove', (e) => {
-            // 在PC上如果没蓄力，鼠标悬停直接绝对控制准星，方便找点；一旦按下开始蓄力，切换为相对滑动。
             if (state === 'aiming' && !isCharging) {
-                const rect = canvas.getBoundingClientRect();
-                aimPos.x = (e.clientX - rect.left) * (canvas.width / rect.width);
-                aimPos.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+                aimPos.x = e.clientX;
+                aimPos.y = e.clientY;
             } else {
                 handleAimMove(e.clientX, e.clientY);
             }
         });
-        
-        canvas.addEventListener('mouseup', (e) => {
-            if(e.button === 0) handleAimEnd();
-        });
+        canvas.addEventListener('mouseup', (e) => { if(e.button === 0) handleAimEnd(); });
 
 
         function updateUI() {
             document.getElementById('score').innerText = score;
             const bar = document.getElementById('powerBar');
             bar.style.width = Math.min((power / maxPower) * 100, 100) + '%';
-            
-            // 变色逻辑
-            if(power >= maxPower) {
-                bar.classList.add('power-overload');
-            } else {
-                bar.classList.remove('power-overload');
-            }
+            if(power >= maxPower) bar.classList.add('power-overload');
+            else bar.classList.remove('power-overload');
         }
 
         function triggerHitEffect(hitX, hitY, hitZ, points, isCrit) {
@@ -343,40 +321,23 @@
 
             for(let i = 0; i < 30; i++) {
                 particles.push({
-                    x: hitProj.x,
-                    y: hitProj.y,
-                    vx: (Math.random() - 0.5) * 15,
-                    vy: (Math.random() - 0.5) * 15,
-                    life: 1.0,
-                    color: isCrit ? '#ffeb3b' : (points > 6 ? '#f0f' : '#0ff')
+                    x: hitProj.x, y: hitProj.y,
+                    vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
+                    life: 1.0, color: isCrit ? '#ffeb3b' : (points > 6 ? '#f0f' : '#0ff')
                 });
             }
 
             let textStr = `+${points}`;
-            let fontSize = 30;
+            let fontSize = 35;
             let color = '#0ff'; 
 
-            if (isCrit) {
-                textStr = `CRITICAL! +10`;
-                fontSize = 60;
-                color = '#ffeb3b'; 
-            } else if (points >= 8) {
-                fontSize = 45;
-                color = '#f0f'; 
-            } else if (points <= 3) {
-                fontSize = 20;
-                color = '#888'; 
-            }
+            if (isCrit) { textStr = `CRITICAL! +10`; fontSize = 65; color = '#ffeb3b'; } 
+            else if (points >= 8) { fontSize = 50; color = '#f0f'; } 
+            else if (points <= 3) { fontSize = 25; color = '#888'; }
 
             floatingTexts.push({
-                x: hitProj.x,
-                y: hitProj.y,
-                text: textStr,
-                life: 1.0,
-                size: fontSize,
-                color: color,
-                vy: -3 - Math.random() * 2, 
-                vx: (Math.random() - 0.5) * 2
+                x: hitProj.x, y: hitProj.y, text: textStr, life: 1.0, size: fontSize, color: color,
+                vy: -3 - Math.random() * 2, vx: (Math.random() - 0.5) * 2
             });
         }
 
@@ -385,20 +346,13 @@
 
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
-                ft.y += ft.vy;
-                ft.x += ft.vx;
-                ft.vy += 0.1; 
-                ft.life -= 0.015;
+                ft.y += ft.vy; ft.x += ft.vx; ft.vy += 0.1; ft.life -= 0.015;
                 if (ft.life <= 0) floatingTexts.splice(i, 1);
             }
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vx *= 0.9; 
-                p.vy *= 0.9;
-                p.life -= 0.03;
+                p.x += p.vx; p.y += p.vy; p.vx *= 0.9; p.vy *= 0.9; p.life -= 0.03;
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
@@ -407,30 +361,21 @@
                     power += 0.5; 
                     if (power >= maxPower) {
                         power = maxPower;
-                        // 【核心机制】蓄力过载引发随机剧烈抖动
-                        shake.x = (Math.random() - 0.5) * 20;
-                        shake.y = (Math.random() - 0.5) * 20;
-                    } else {
-                        shake.x = 0;
-                        shake.y = 0;
-                    }
+                        shake.x = (Math.random() - 0.5) * 20; shake.y = (Math.random() - 0.5) * 20;
+                    } else { shake.x = 0; shake.y = 0; }
                     updateUI();
                 }
             } else if (state === 'flying') {
                 arrow.trail.push({x: arrow.x, y: arrow.y, z: arrow.z});
                 if (arrow.trail.length > 25) arrow.trail.shift();
 
-                let prevZ = arrow.z;
-                let prevX = arrow.x;
-                let prevY = arrow.y;
+                let prevZ = arrow.z; let prevX = arrow.x; let prevY = arrow.y;
 
                 arrow.vy -= gravity;   
                 arrow.vx += wind.x;    
                 arrow.vy += wind.y;    
                 
-                arrow.x += arrow.vx;
-                arrow.y += arrow.vy;
-                arrow.z += arrow.vz;
+                arrow.x += arrow.vx; arrow.y += arrow.vy; arrow.z += arrow.vz;
 
                 if (prevZ < target.z && arrow.z >= target.z) {
                     state = 'ended';
@@ -444,35 +389,23 @@
                     if (dist <= target.radius) {
                         let ringWidth = target.radius / 10;
                         let points = 11 - Math.ceil(dist / ringWidth);
-                        
-                        if (points < 1) points = 1; 
-                        if (points > 10) points = 10;
-                        
+                        if (points < 1) points = 1; if (points > 10) points = 10;
                         let isCrit = false;
-                        if (dist <= ringWidth / 2) {
-                            isCrit = true;
-                            points = 10;
-                        }
+                        if (dist <= ringWidth / 2) { isCrit = true; points = 10; }
                         score += points;
                         triggerHitEffect(hitX, hitY, target.z, points, isCrit);
                     } else {
-                        floatingTexts.push({
-                            x: CX, y: CY, text: "MISS", life: 1.0, size: 40, color: '#ff3333', vy: -2, vx: 0
-                        });
+                        floatingTexts.push({ x: CX, y: CY, text: "MISS", life: 1.0, size: 50, color: '#ff3333', vy: -2, vx: 0 });
                     }
                     
-                    arrow.x = hitX;
-                    arrow.y = hitY;
-                    arrow.z = target.z;
-                    
+                    arrow.x = hitX; arrow.y = hitY; arrow.z = target.z;
                     document.getElementById('nextBtn').disabled = false;
                     updateUI();
                 }
-                else if (arrow.y < -150) {
+                // 【核心修改】加深落地判定，防止靶子变大后提前判定落地
+                else if (arrow.y < -300) {
                     state = 'ended';
-                    floatingTexts.push({
-                        x: CX, y: CY + 100, text: "GROUNDED", life: 1.0, size: 30, color: '#888', vy: -1, vx: 0
-                    });
+                    floatingTexts.push({ x: CX, y: CY + 100, text: "GROUNDED", life: 1.0, size: 40, color: '#888', vy: -1, vx: 0 });
                     document.getElementById('nextBtn').disabled = false;
                 }
             }
@@ -483,15 +416,13 @@
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
             ctx.lineWidth = 1;
 
+            // 地平线参考 Y: -100
             for(let i = -10; i <= 10; i++) {
                 let x = i * 200;
-                let p1 = project(x, -50, 0); 
-                let p2 = project(x, -50, 2000); 
+                let p1 = project(x, -100, 0); 
+                let p2 = project(x, -100, 2000); 
                 if(p1 && p2) {
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
                 }
             }
 
@@ -499,15 +430,12 @@
             for(let i = 0; i < 15; i++) {
                 let z = i * 200 - zOffset;
                 if (z < 0) continue;
-                let pLeft = project(-2000, -50, z);
-                let pRight = project(2000, -50, z);
+                let pLeft = project(-2000, -100, z);
+                let pRight = project(2000, -100, z);
                 if(pLeft && pRight) {
                     let alpha = Math.max(0, 1 - (z / 2000));
                     ctx.strokeStyle = `rgba(255, 0, 255, ${alpha * 0.3})`;
-                    ctx.beginPath();
-                    ctx.moveTo(pLeft.x, pLeft.y);
-                    ctx.lineTo(pRight.x, pRight.y);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(pRight.x, pRight.y); ctx.stroke();
                 }
             }
             ctx.restore();
@@ -532,60 +460,36 @@
                 let r = (target.radius - i * (target.radius / rings)) * pTarget.scale;
                 ctx.arc(pTarget.x, pTarget.y, r, 0, Math.PI * 2);
                 
-                if (i <= 3) {
-                    ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
-                    ctx.shadowColor = '#0ff';
-                } else if (i <= 7) {
-                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)';
-                    ctx.shadowColor = '#f0f';
-                } else {
-                    ctx.strokeStyle = 'rgba(255, 235, 59, 1)';
-                    ctx.shadowColor = '#ffeb3b';
-                }
+                if (i <= 3) { ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)'; ctx.shadowColor = '#0ff'; } 
+                else if (i <= 7) { ctx.strokeStyle = 'rgba(255, 0, 255, 0.8)'; ctx.shadowColor = '#f0f'; } 
+                else { ctx.strokeStyle = 'rgba(255, 235, 59, 1)'; ctx.shadowColor = '#ffeb3b'; }
                 
-                ctx.lineWidth = (i % 2 === 0 ? 2 : 1) * pTarget.scale;
+                ctx.lineWidth = (i % 2 === 0 ? 3 : 1.5) * pTarget.scale; // 粗细感增强
                 ctx.stroke();
             }
 
             ctx.beginPath();
             let crossR = (target.radius / 10) * pTarget.scale;
-            ctx.moveTo(pTarget.x - crossR, pTarget.y);
-            ctx.lineTo(pTarget.x + crossR, pTarget.y);
-            ctx.moveTo(pTarget.x, pTarget.y - crossR);
-            ctx.lineTo(pTarget.x, pTarget.y + crossR);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            ctx.moveTo(pTarget.x - crossR, pTarget.y); ctx.lineTo(pTarget.x + crossR, pTarget.y);
+            ctx.moveTo(pTarget.x, pTarget.y - crossR); ctx.lineTo(pTarget.x, pTarget.y + crossR);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
 
             ctx.restore();
         }
 
         function drawArrowAndTrail() {
             if (arrow.trail.length > 1) {
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#0ff';
-                
-                ctx.beginPath();
-                let started = false;
+                ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
+                ctx.beginPath(); let started = false;
                 for (let i = 0; i < arrow.trail.length; i++) {
                     let pt = arrow.trail[i];
                     let pProj = project(pt.x, pt.y, pt.z);
                     if (pProj) {
-                        if (!started) {
-                            ctx.moveTo(pProj.x, pProj.y);
-                            started = true;
-                        } else {
-                            ctx.lineTo(pProj.x, pProj.y);
-                        }
+                        if (!started) { ctx.moveTo(pProj.x, pProj.y); started = true; } 
+                        else { ctx.lineTo(pProj.x, pProj.y); }
                     }
                 }
-                
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
-                ctx.stroke();
-                ctx.restore();
+                ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)'; ctx.stroke(); ctx.restore();
             }
 
             if (state === 'flying' || state === 'ended') {
@@ -598,162 +502,63 @@
                 const pTail = project(tailX, tailY, tailZ);
 
                 if (pHead && pTail) {
-                    ctx.save();
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = '#f0f';
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(pTail.x, pTail.y);
-                    ctx.lineTo(pHead.x, pHead.y);
-                    ctx.lineWidth = Math.max(2, 5 * pHead.scale); 
-                    ctx.strokeStyle = '#ff00ff';
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.arc(pHead.x, pHead.y, Math.max(2, 4 * pHead.scale), 0, Math.PI * 2);
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                    ctx.restore();
+                    ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = '#f0f';
+                    ctx.beginPath(); ctx.moveTo(pTail.x, pTail.y); ctx.lineTo(pHead.x, pHead.y);
+                    ctx.lineWidth = Math.max(3, 6 * pHead.scale); 
+                    ctx.strokeStyle = '#ff00ff'; ctx.lineCap = 'round'; ctx.stroke();
+                    ctx.beginPath(); ctx.arc(pHead.x, pHead.y, Math.max(3, 5 * pHead.scale), 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore();
                 }
             }
         }
 
-        function drawEffects() {
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            for (let p of particles) {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 2 + Math.random() * 2, 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life;
-                ctx.fill();
-            }
-            ctx.restore();
-
-            for (let ft of floatingTexts) {
-                ctx.save();
-                ctx.font = `italic 900 ${ft.size}px 'Orbitron', sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = ft.color;
-                ctx.globalAlpha = Math.max(0, ft.life);
-                
-                let xOffset = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0;
-                let yOffset = ft.size > 40 ? (Math.random() - 0.5) * 4 : 0;
-
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = ft.color;
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#fff';
-                ctx.strokeText(ft.text, ft.x + xOffset, ft.y + yOffset);
-                ctx.fillText(ft.text, ft.x + xOffset, ft.y + yOffset);
-                
-                ctx.restore();
-            }
-        }
-
         function drawHUD() {
-            // 风向仪 (左上角)
-            const cx = 70;
-            const cy = 70;
-            const r = 35;
+            // 风向仪 (稍微往下偏一点，避开顶部标题)
+            const cx = 50;
+            const cy = 60; 
+            const r = 25;
             
             ctx.save();
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-            ctx.lineWidth = 1.5;
-            
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(cx, cy, r + 5, -Math.PI/4, Math.PI/4);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(cx, cy, r + 5, Math.PI - Math.PI/4, Math.PI + Math.PI/4);
-            ctx.stroke();
-
-            ctx.fillStyle = 'rgba(0, 20, 40, 0.5)';
-            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, cy, r + 5, -Math.PI/4, Math.PI/4); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, cy, r + 5, Math.PI - Math.PI/4, Math.PI + Math.PI/4); ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.5)'; ctx.fill();
 
             let windMag = Math.hypot(wind.x, wind.y);
             if(windMag > 0.01) {
-                ctx.translate(cx, cy);
-                ctx.rotate(Math.atan2(-wind.y, wind.x)); 
-                
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                let lineLen = Math.min((windMag / 0.15) * r, r);
-                ctx.lineTo(lineLen, 0);
-                ctx.lineTo(lineLen - 8, -5);
-                ctx.moveTo(lineLen, 0);
-                ctx.lineTo(lineLen - 8, 5);
-                
-                ctx.strokeStyle = '#f0f';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#f0f';
-                ctx.lineWidth = 3;
-                ctx.stroke();
+                ctx.translate(cx, cy); ctx.rotate(Math.atan2(-wind.y, wind.x)); 
+                ctx.beginPath(); ctx.moveTo(0, 0); let lineLen = Math.min((windMag / 0.15) * r, r);
+                ctx.lineTo(lineLen, 0); ctx.lineTo(lineLen - 6, -4); ctx.moveTo(lineLen, 0); ctx.lineTo(lineLen - 6, 4);
+                ctx.strokeStyle = '#f0f'; ctx.shadowBlur = 10; ctx.shadowColor = '#f0f'; ctx.lineWidth = 3; ctx.stroke();
             }
             ctx.restore();
 
-            ctx.fillStyle = '#0ff';
-            ctx.font = '10px "Orbitron"';
-            ctx.textAlign = 'center';
-            ctx.fillText(`WIND: ${(windMag * 100).toFixed(1)}`, cx, cy + r + 20);
+            ctx.fillStyle = '#0ff'; ctx.font = '9px "Orbitron"'; ctx.textAlign = 'center';
+            ctx.fillText(`WIND: ${(windMag * 100).toFixed(1)}`, cx, cy + r + 15);
             
-            // 瞄准状态下的准星和弓形反馈
             if (state === 'aiming') {
-                // 计算加上抖动偏移后的实时渲染坐标
                 let currentAimX = aimPos.x + shake.x;
                 let currentAimY = aimPos.y + shake.y;
 
                 ctx.save();
-                // 蓄力越满，准星越红
-                let rColor = Math.floor((power / maxPower) * 255);
-                let gColor = 255 - rColor;
-                ctx.strokeStyle = `rgb(${rColor}, ${gColor}, 255)`;
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = ctx.strokeStyle;
-                
+                let rColor = Math.floor((power / maxPower) * 255); let gColor = 255 - rColor;
+                ctx.strokeStyle = `rgb(${rColor}, ${gColor}, 255)`; ctx.lineWidth = 2; ctx.shadowBlur = 8; ctx.shadowColor = ctx.strokeStyle;
                 ctx.translate(currentAimX, currentAimY);
-                
-                // 准星外圈动画
-                ctx.rotate(time);
-                ctx.beginPath();
-                ctx.arc(0, 0, 25, 0, Math.PI * 1.5);
-                ctx.stroke();
-                
-                // 准星内十字
-                ctx.rotate(-time * 2);
-                ctx.beginPath();
-                ctx.moveTo(-15, 0); ctx.lineTo(15, 0);
-                ctx.moveTo(0, -15); ctx.lineTo(0, 15);
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
+                ctx.rotate(time); ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 1.5); ctx.stroke();
+                ctx.rotate(-time * 2); ctx.beginPath(); ctx.moveTo(-15, 0); ctx.lineTo(15, 0); ctx.moveTo(0, -15); ctx.lineTo(0, 15); ctx.lineWidth = 1.5; ctx.stroke();
                 ctx.restore();
 
-                // 底部能量弓动画跟随抖动准星
+                // 底部能量弓动画跟随抖动准星 (稍微向上抬高，不被UI面板挡住)
                 let bowX = CX + (currentAimX - CX) * 0.05;
-                let bowY = canvas.height - 10 + (currentAimY - CY) * 0.05;
+                let bowY = canvas.height - 180 + (currentAimY - CY) * 0.05;
                 
                 ctx.save();
-                ctx.beginPath();
-                ctx.arc(bowX, bowY, 80, Math.PI * 1.1, Math.PI * 1.9);
-                ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
-                ctx.lineWidth = 4;
-                ctx.stroke();
-                
+                ctx.beginPath(); ctx.arc(bowX, bowY, 80, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)'; ctx.lineWidth = 4; ctx.stroke();
                 if(isCharging) {
-                    ctx.shadowBlur = 15;
-                    let pull = (power / maxPower);
-                    ctx.shadowColor = pull >= 1 ? '#ff0000' : '#f0f';
-                    ctx.beginPath();
-                    ctx.arc(bowX, bowY + pull * 30, 80, Math.PI * 1.1, Math.PI * 1.9);
-                    ctx.strokeStyle = `rgb(${pull*255}, ${255 - pull*255}, 255)`;
-                    ctx.lineWidth = 6;
-                    ctx.stroke();
+                    ctx.shadowBlur = 15; let pull = (power / maxPower); ctx.shadowColor = pull >= 1 ? '#ff0000' : '#f0f';
+                    ctx.beginPath(); ctx.arc(bowX, bowY + pull * 30, 80, Math.PI * 1.1, Math.PI * 1.9);
+                    ctx.strokeStyle = `rgb(${pull*255}, ${255 - pull*255}, 255)`; ctx.lineWidth = 6; ctx.stroke();
                 }
                 ctx.restore();
             }
